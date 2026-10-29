@@ -1,0 +1,785 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ESL Bomb Squad</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.23.9/babel.min.js"></script>
+</head>
+<body>
+<div id="root"></div>
+<script type="text/babel">
+const { useState, useEffect, useCallback, useRef, useMemo } = React;
+
+/* ===== UTILITIES ===== */
+const generateSerialNumber = () => {
+  const chars = "ABCDEFGHJKLMNPQRSTUVWXYZ";
+  const nums = "0123456789";
+  const pick = (s) => s[Math.floor(Math.random() * s.length)];
+  return `${pick(chars)}${pick(chars)}${pick(nums)}${pick(nums)}${pick(nums)}-${pick(chars)}${pick(nums)}${pick(chars)}${pick(nums)}${pick(nums)}`;
+};
+const getLastDigit = (sn) => parseInt(sn.replace(/[^0-9]/g, "").slice(-1)) || 0;
+const getFirstDigit = (sn) => parseInt(sn.replace(/[^0-9]/g, "")[0]) || 0;
+const getLastLetter = (sn) => sn.split("").filter(c => /[A-Z]/i.test(c)).pop()?.toUpperCase() || "A";
+const getFirstLetter = (sn) => sn.split("").find(c => /[A-Z]/i.test(c))?.toUpperCase() || "A";
+const getAllDigits = (sn) => sn.replace(/[^0-9]/g, "");
+const countLetters = (sn) => sn.replace(/[^A-Z]/gi, "").length;
+
+const MODULES_LIST = [
+  { id:"colorWires", name:"🔌 Color Wires", type:"colorWires", difficulty:"A1" },
+  { id:"userName", name:"👤 User Name", type:"userName", difficulty:"A1" },
+  { id:"monsterLab", name:"👾 Monster Lab", type:"monsterLab", difficulty:"A1" },
+  { id:"guessWho", name:"🕵️ Guess Who", type:"guessWho", difficulty:"A1" },
+  { id:"vendingMachine", name:"🏭 Vending Machine", type:"vendingMachine", difficulty:"A1" },
+  { id:"symbolKeypad", name:"🔣 Symbol Keypad", type:"symbolKeypad", difficulty:"A1" },
+  { id:"numberKeypad", name:"🔢 Number Keypad", type:"numberKeypad", difficulty:"A2" },
+  { id:"bigButton", name:"🔴 Big Button", type:"bigButton", difficulty:"A2" },
+  { id:"sliders", name:"🎚️ Sliders", type:"sliders", difficulty:"A2" },
+  { id:"crackTheCode", name:"🔐 Crack the Code", type:"crackTheCode", difficulty:"A2" },
+  { id:"wordButtons", name:"📝 Word Buttons", type:"wordButtons", difficulty:"A2" },
+  { id:"memory", name:"🧠 Memory", type:"memory", difficulty:"A2" },
+  { id:"symbolPanel", name:"🎨 Symbol Panel", type:"symbolPanel", difficulty:"B1" },
+  { id:"colorSwitchboard", name:"🎛️ Switchboard", type:"colorSwitchboard", difficulty:"B1" },
+  { id:"worldClock", name:"🌍 World Clock", type:"worldClock", difficulty:"B1" },
+  { id:"combinationLock", name:"🔒 Combo Lock", type:"combinationLock", difficulty:"B1" },
+];
+
+/* ===================== MODULES ===================== */
+
+/* COLOR WIRES */
+const ColorWiresModule = ({ serialNumber, onSuccess, onStrike }) => {
+  const wireColors = ["red","blue","yellow","green","white","black"];
+  const colorHex = {red:"#e74c3c",blue:"#3498db",yellow:"#f1c40f",green:"#2ecc71",white:"#ecf0f1",black:"#2c3e50"};
+  const [wires] = useState(() => {
+    const count = Math.floor(Math.random()*3)+3;
+    return Array.from({length:count},(_,i)=>({id:i,color:wireColors[Math.floor(Math.random()*wireColors.length)],cut:false}));
+  });
+  const [wireState,setWireState] = useState(wires);
+  const [solved,setSolved] = useState(false);
+  const getCorrectWire = () => {
+    const ld = getLastDigit(serialNumber); const hasRed = wires.some(w=>w.color==="red");
+    if(wires.length===3){if(!hasRed)return 1;if(wires[wires.length-1].color==="white")return wires.length-1;if(wires.filter(w=>w.color==="blue").length>1)return wires.map(w=>w.color).lastIndexOf("blue");return wires.length-1;}
+    else if(wires.length===4){if(wires.filter(w=>w.color==="red").length>1&&ld%2!==0)return wires.map(w=>w.color).lastIndexOf("red");if(wires[wires.length-1].color==="yellow"&&!hasRed)return 0;if(wires.filter(w=>w.color==="blue").length===1)return 0;if(wires.filter(w=>w.color==="yellow").length>1)return wires.length-1;return 1;}
+    else{if(wires[wires.length-1].color==="black"&&ld%2!==0)return 3;if(wires.filter(w=>w.color==="red").length===1&&wires.filter(w=>w.color==="yellow").length>1)return 0;if(!wires.some(w=>w.color==="black"))return 1;return 0;}
+  };
+  const cutWire = (idx) => {
+    if(solved||wireState[idx].cut)return;
+    setWireState(ws=>ws.map((w,i)=>i===idx?{...w,cut:true}:w));
+    if(idx===getCorrectWire()){setSolved(true);onSuccess();}else onStrike();
+  };
+  return (<div className="module-content" style={{display:"flex",flexDirection:"column",minHeight:"180px"}}><h3>🔌 COLOR WIRES</h3><p className="module-hint">Cut the correct wire!</p>
+    <div className="wire-container">{wireState.map((w,i)=>(<button key={w.id} onClick={()=>cutWire(i)} disabled={solved||w.cut} className={`wire ${w.cut?"cut":""}`} style={{background:w.cut?"transparent":colorHex[w.color],borderColor:w.cut?"#555":"transparent"}}>{w.cut&&<span className="wire-cut-text">✂️</span>}</button>))}</div></div>);
+};
+
+/* USER NAME */
+const UserNameModule = ({ serialNumber, onSuccess, onStrike }) => {
+  const names={A:"ALICE",B:"BOB",C:"CHARLIE",D:"DAVID",E:"EVE",F:"FRANK",G:"GRACE",H:"HENRY",I:"IRIS",J:"JACK",K:"KATE",L:"LEO",M:"MARY",N:"NOAH",O:"OLIVE",P:"PETER",Q:"QUINN",R:"ROSE",S:"SAM",T:"TOM",U:"UMA",V:"VERA",W:"WILL",X:"XENA",Y:"YUKI",Z:"ZARA"};
+  const correct = names[getLastLetter(serialNumber)]||"ALICE";
+  const [options] = useState(()=>{const s=new Set([correct]);const a=Object.values(names);while(s.size<4)s.add(a[Math.floor(Math.random()*a.length)]);return[...s].sort(()=>Math.random()-0.5);});
+  const [solved,setSolved] = useState(false);
+  return (<div className="module-content"><h3>👤 USER NAME</h3><p className="module-hint">Select the correct user name</p>
+    <div className="options-grid">{options.map(n=>(<button key={n} onClick={()=>{if(solved)return;if(n===correct){setSolved(true);onSuccess();}else onStrike();}} disabled={solved} className={`option-btn ${solved&&n===correct?"correct":""}`}>{n}</button>))}</div></div>);
+};
+
+/* MONSTER LAB */
+const MonsterLabModule = ({ serialNumber, onSuccess, onStrike }) => {
+  const monsterNames=["ZORG","BLIP","FLOP","MEEP"];
+  const eyeCounts=[1,2,3,4]; const armTypes=["tentacles","robot","furry"]; const skinColors=["purple","green","orange"];
+  const colorHex={purple:"#9c27b0",green:"#4caf50",orange:"#ff9800"}; const armEmoji={tentacles:"🐙",robot:"🤖",furry:"🐻"};
+  const [monster] = useState(()=>({eyes:eyeCounts[Math.floor(Math.random()*4)],arms:armTypes[Math.floor(Math.random()*3)],color:skinColors[Math.floor(Math.random()*3)]}));
+  const ld = getLastDigit(serialNumber);
+  const correct = ld<=2?monsterNames[eyeCounts.indexOf(monster.eyes)]||"ZORG":ld<=5?monsterNames[skinColors.indexOf(monster.color)]||"MEEP":ld<=7?monsterNames[armTypes.indexOf(monster.arms)]||"ZORG":monsterNames[monster.eyes%4];
+  const [solved,setSolved] = useState(false);
+  return (<div className="module-content"><h3>👾 MONSTER LAB</h3>
+    <div className="monster-display" style={{borderColor:colorHex[monster.color]}}><div className="monster-eyes">{"👁️".repeat(monster.eyes)}</div><div className="monster-body">{armEmoji[monster.arms]}</div><div className="monster-desc">{monster.eyes} eye{monster.eyes>1?"s":""} · {monster.arms} · {monster.color}</div></div>
+    <div className="options-grid">{monsterNames.map(n=>(<button key={n} onClick={()=>{if(solved)return;if(n===correct){setSolved(true);onSuccess();}else onStrike();}} disabled={solved} className={`option-btn ${solved&&n===correct?"correct":""}`}>{n}</button>))}</div></div>);
+};
+
+/* GUESS WHO */
+const GuessWhoModule = ({ serialNumber, onSuccess, onStrike }) => {
+  const eyeColors=["Brown","Blue","Green"]; const hairColors=["Black","Brown","Blonde","Red","Gray"];
+  const agents=["🐀 RAT","🐂 OX","🐅 TIGER","🐇 RABBIT","🐉 DRAGON","🐍 SNAKE","🐴 HORSE","🐐 GOAT","🐒 MONKEY","🐓 ROOSTER","🐕 DOG","🐖 PIG","🐼 PANDA","🦛 HIPPO","🦒 GIRAFFE"];
+  const eyeHex={Brown:"#8B4513",Blue:"#4488ff",Green:"#2ecc71"}; const hairHex={Black:"#222",Brown:"#8B6914",Blonde:"#f1c40f",Red:"#e74c3c",Gray:"#999"};
+  const [suspect] = useState(()=>({eye:eyeColors[Math.floor(Math.random()*3)],hair:hairColors[Math.floor(Math.random()*5)]}));
+  const getCorrect = () => { const ei=eyeColors.indexOf(suspect.eye); const hi=hairColors.indexOf(suspect.hair); return agents[(ei*5+hi)%agents.length]; };
+  const correct = getCorrect();
+  const [options] = useState(()=>{const s=new Set([correct]);while(s.size<4)s.add(agents[Math.floor(Math.random()*agents.length)]);return[...s].sort(()=>Math.random()-0.5);});
+  const [solved,setSolved] = useState(false);
+  return (<div className="module-content"><h3>🕵️ GUESS WHO</h3>
+    <div style={{background:"#0a1520",borderRadius:"8px",padding:"1rem",textAlign:"center",marginBottom:"0.75rem",border:"1px solid #333"}}>
+      <div style={{width:"60px",height:"20px",background:hairHex[suspect.hair],borderRadius:"10px 10px 0 0",margin:"0 auto"}}></div>
+      <div style={{fontSize:"2rem"}}>😐</div>
+      <div style={{display:"flex",justifyContent:"center",gap:"0.5rem",marginTop:"0.25rem"}}>
+        <span style={{display:"inline-block",width:"12px",height:"12px",borderRadius:"50%",background:eyeHex[suspect.eye]}}></span>
+        <span style={{color:"#888",fontSize:"0.7rem"}}>{suspect.eye} eyes</span>
+        <span style={{display:"inline-block",width:"12px",height:"12px",borderRadius:"4px",background:hairHex[suspect.hair]}}></span>
+        <span style={{color:"#888",fontSize:"0.7rem"}}>{suspect.hair} hair</span>
+      </div>
+    </div>
+    <div className="options-grid">{options.map(n=>(<button key={n} onClick={()=>{if(solved)return;if(n===correct){setSolved(true);onSuccess();}else onStrike();}} disabled={solved} className={`option-btn ${solved&&n===correct?"correct":""}`} style={{fontSize:"0.75rem"}}>{n}</button>))}</div></div>);
+};
+
+/* VENDING MACHINE */
+const VendingMachineModule = ({ serialNumber, onSuccess, onStrike }) => {
+  const allItems=[{name:"Apple",emoji:"🍎",cat:"fruit",price:150},{name:"Banana",emoji:"🍌",cat:"fruit",price:100},{name:"Cookie",emoji:"🍪",cat:"snack",price:175},{name:"Chips",emoji:"🥔",cat:"snack",price:200},{name:"Soda",emoji:"🥤",cat:"drink",price:125},{name:"Water",emoji:"💧",cat:"drink",price:75},{name:"Carrot",emoji:"🥕",cat:"vegetable",price:150},{name:"Candy",emoji:"🍬",cat:"snack",price:50}];
+  const [items] = useState(()=>{const s=[...allItems].sort(()=>Math.random()-0.5);return s.slice(0,4);});
+  const ld = getLastDigit(serialNumber);
+  const getCorrect = () => {
+    if(ld<=1)return items.reduce((a,b)=>a.price<b.price?a:b);
+    if(ld<=3)return items.reduce((a,b)=>a.price>b.price?a:b);
+    if(ld<=5){const r=items.filter(i=>i.price>100&&i.price<200);return r[0]||items.reduce((a,b)=>a.price<b.price?a:b);}
+    if(ld<=7){const f=items.filter(i=>i.cat==="fruit"||i.cat==="vegetable");return f[0]||items[0];}
+    const fifties=items.filter(i=>i.price%100===50);return fifties[0]||items.reduce((a,b)=>a.price<b.price?a:b);
+  };
+  const correct = getCorrect();
+  const [solved,setSolved] = useState(false);
+  const fmt = (p)=>`$${(p/100).toFixed(2)}`;
+  return (<div className="module-content"><h3>🏭 VENDING MACHINE</h3><p className="module-hint">Buy the correct item!</p>
+    <div className="options-grid">{items.map((item,i)=>(<button key={i} onClick={()=>{if(solved)return;if(item.name===correct.name){setSolved(true);onSuccess();}else onStrike();}} disabled={solved} className={`option-btn ${solved&&item.name===correct.name?"correct":""}`} style={{display:"flex",flexDirection:"column",alignItems:"center",padding:"0.6rem"}}>
+      <span style={{fontSize:"1.5rem"}}>{item.emoji}</span><span style={{fontSize:"0.7rem"}}>{item.name}</span><span style={{fontSize:"0.65rem",color:"#f1c40f"}}>{fmt(item.price)}</span></button>))}</div></div>);
+};
+
+/* SYMBOL KEYPAD */
+const SymbolKeypadModule = ({ serialNumber, onSuccess, onStrike }) => {
+  const columns=[["©","★","☆","❖"],["☎","★","✿","❖"],["©","☎","✿","☆"],["★","©","☎","✿"]];
+  const [displayed] = useState(()=>{const col=columns[Math.floor(Math.random()*columns.length)];const shuffled=[...col].sort(()=>Math.random()-0.5);return{symbols:shuffled,correctOrder:col};});
+  const [pressed,setPressed] = useState([]);
+  const [solved,setSolved] = useState(false);
+  const handlePress = (sym) => {
+    if(solved||pressed.includes(sym))return;
+    const nextCorrect = displayed.correctOrder[pressed.length];
+    if(sym===nextCorrect){const np=[...pressed,sym];setPressed(np);if(np.length===4){setSolved(true);onSuccess();}}
+    else{onStrike();setPressed([]);}
+  };
+  return (<div className="module-content"><h3>🔣 SYMBOL KEYPAD</h3><p className="module-hint">Press symbols in the correct order</p>
+    <div style={{display:"flex",justifyContent:"center",gap:"0.5rem",marginBottom:"0.75rem"}}>{[0,1,2,3].map(i=>(<span key={i} style={{width:"28px",height:"28px",display:"flex",alignItems:"center",justifyContent:"center",background:"#1a1a2e",border:`2px solid ${pressed[i]?"#4caf50":"#333"}`,borderRadius:"6px",color:pressed[i]?"#4caf50":"#555",fontSize:"0.9rem"}}>{pressed[i]||"?"}</span>))}</div>
+    <div className="options-grid">{displayed.symbols.map(s=>(<button key={s} onClick={()=>handlePress(s)} disabled={solved||pressed.includes(s)} className={`symbol-btn ${pressed.includes(s)?"correct":""}`} style={{fontSize:"1.5rem"}}>{s}</button>))}</div></div>);
+};
+
+/* NUMBER KEYPAD */
+const NumberKeypadModule = ({ serialNumber, onSuccess, onStrike }) => {
+  const ascending = getFirstLetter(serialNumber).charCodeAt(0)<=77;
+  const correctOrder = ascending?"0123456789":"9876543210";
+  const [input,setInput] = useState("");
+  const [solved,setSolved] = useState(false);
+  const handlePress = (num) => {
+    if(solved)return; const next=input+num; setInput(next);
+    if(next.length===10){if(next===correctOrder){setSolved(true);onSuccess();}else{onStrike();setInput("");}}
+  };
+  return (<div className="module-content"><h3>🔢 NUMBER KEYPAD</h3><p className="module-hint">Enter all digits in the correct order</p>
+    <div className="keypad-display">{input||"_ _ _ _ _ _ _ _ _ _"}</div>
+    <div className="keypad-grid">{[1,2,3,4,5,6,7,8,9,0].map(n=>(<button key={n} onClick={()=>handlePress(String(n))} disabled={solved||input.includes(String(n))} className={`keypad-btn ${input.includes(String(n))?"used":""}`}>{n}</button>))}</div>
+    <button onClick={()=>setInput("")} className="clear-btn">Clear</button></div>);
+};
+
+/* BIG BUTTON */
+const BigButtonModule = ({ serialNumber, onSuccess, onStrike }) => {
+  const btnColors=["red","blue","yellow","white"]; const btnWords=["PRESS","HOLD","PUSH","CLICK"];
+  const colorHex={red:"#e74c3c",blue:"#3498db",yellow:"#f1c40f",white:"#ecf0f1"};
+  const [btnColor] = useState(()=>btnColors[Math.floor(Math.random()*4)]);
+  const [btnWord] = useState(()=>btnWords[Math.floor(Math.random()*4)]);
+  const ld = getLastDigit(serialNumber);
+  // Rule: blue+HOLD=hold, red+PRESS=press, white=hold, otherwise press
+  const shouldHold = (btnColor==="blue"&&btnWord==="HOLD")||(btnColor==="white")||ld>7;
+  const [holding,setHolding] = useState(false); const [holdTime,setHoldTime] = useState(0);
+  const [solved,setSolved] = useState(false); const timerRef = useRef(null);
+  const startHold = () => {
+    if(solved)return; setHolding(true); setHoldTime(0);
+    timerRef.current = setInterval(()=>setHoldTime(t=>t+100),100);
+  };
+  const endHold = () => {
+    if(solved)return; clearInterval(timerRef.current); setHolding(false);
+    if(shouldHold&&holdTime>=2000){setSolved(true);onSuccess();}
+    else if(!shouldHold&&holdTime<500){setSolved(true);onSuccess();}
+    else{onStrike();setHoldTime(0);}
+  };
+  useEffect(()=>()=>clearInterval(timerRef.current),[]);
+  return (<div className="module-content"><h3>🔴 BIG BUTTON</h3><p className="module-hint">Press or hold?</p>
+    <div style={{display:"flex",flexDirection:"column",alignItems:"center",gap:"0.75rem"}}>
+      <button onMouseDown={startHold} onMouseUp={endHold} onTouchStart={startHold} onTouchEnd={endHold} disabled={solved}
+        style={{width:"120px",height:"120px",borderRadius:"50%",border:"6px solid #333",background:colorHex[btnColor],cursor:solved?"default":"pointer",fontSize:"1rem",fontFamily:"'Orbitron',sans-serif",fontWeight:"bold",color:btnColor==="yellow"||btnColor==="white"?"#333":"#fff",transform:holding?"scale(0.95)":"scale(1)",boxShadow:holding?"0 4px 10px rgba(0,0,0,0.4)":"0 8px 20px rgba(0,0,0,0.4)",transition:"all 0.2s"}}>{btnWord}</button>
+      {holding&&<div style={{background:shouldHold?"#3498db":"#e74c3c",padding:"0.3rem 1rem",borderRadius:"4px",fontSize:"0.8rem",color:"#fff"}}>{(holdTime/1000).toFixed(1)}s</div>}
+      {solved&&<div style={{color:"#4caf50",fontFamily:"'Orbitron',sans-serif"}}>✓</div>}
+    </div></div>);
+};
+
+/* SLIDERS */
+const SlidersModule = ({ serialNumber, onSuccess, onStrike }) => {
+  const sliderColors=["red","blue","yellow"];
+  const colorHex={red:"#e74c3c",blue:"#3498db",yellow:"#f1c40f"};
+  const digits = getAllDigits(serialNumber);
+  const targets = sliderColors.map((_,i)=>parseInt(digits[i])||0);
+  const [values,setValues] = useState([5,5,5]);
+  const [solved,setSolved] = useState(false);
+  const handleChange = (idx,val) => { if(solved)return; const nv=[...values];nv[idx]=val;setValues(nv); };
+  const handleSubmit = () => {
+    if(solved)return;
+    if(values.every((v,i)=>v===targets[i])){setSolved(true);onSuccess();}else onStrike();
+  };
+  return (<div className="module-content"><h3>🎚️ SLIDERS</h3><p className="module-hint">Set each slider to the correct value</p>
+    <div style={{display:"flex",flexDirection:"column",gap:"0.75rem"}}>
+      {sliderColors.map((c,i)=>(<div key={c} style={{display:"flex",alignItems:"center",gap:"0.5rem"}}>
+        <span style={{width:"16px",height:"16px",borderRadius:"50%",background:colorHex[c],flexShrink:0}}></span>
+        <input type="range" min={0} max={9} value={values[i]} onChange={e=>handleChange(i,parseInt(e.target.value))} disabled={solved} style={{flex:1,accentColor:colorHex[c]}} />
+        <span style={{color:"#0ff",fontFamily:"'Orbitron',sans-serif",fontSize:"1rem",width:"1.5rem",textAlign:"center"}}>{values[i]}</span>
+      </div>))}
+    </div>
+    <button onClick={handleSubmit} disabled={solved} className={`submit-btn ${solved?"correct":""}`} style={{marginTop:"0.75rem"}}>{solved?"✓ CORRECT":"SUBMIT"}</button></div>);
+};
+
+/* CRACK THE CODE */
+const CrackTheCodeModule = ({ serialNumber, onSuccess, onStrike }) => {
+  const colors=["red","green","yellow","blue","white"];
+  const colorHex={red:"#e74c3c",green:"#2ecc71",yellow:"#f1c40f",blue:"#3498db",white:"#ecf0f1"};
+  const [code] = useState(()=>Array.from({length:3},()=>colors[Math.floor(Math.random()*5)]));
+  const [guess,setGuess] = useState(["red","red","red"]);
+  const [attempts,setAttempts] = useState([]);
+  const [solved,setSolved] = useState(false);
+  const getClues = (g) => {
+    let correct=0,misplaced=0;const cCopy=[...code];const gCopy=[...g];
+    for(let i=0;i<3;i++)if(gCopy[i]===cCopy[i]){correct++;cCopy[i]=null;gCopy[i]=null;}
+    for(let i=0;i<3;i++)if(gCopy[i]){const j=cCopy.indexOf(gCopy[i]);if(j!==-1){misplaced++;cCopy[j]=null;}}
+    return{correct,misplaced};
+  };
+  const handleSubmit = () => {
+    if(solved)return; const clues=getClues(guess);
+    setAttempts(a=>[...a,{guess:[...guess],clues}]);
+    if(clues.correct===3){setSolved(true);onSuccess();}
+    else if(attempts.length>=4)onStrike();
+  };
+  const cycleColor = (idx) => {
+    if(solved)return; const ng=[...guess]; const ci=colors.indexOf(ng[idx]); ng[idx]=colors[(ci+1)%colors.length]; setGuess(ng);
+  };
+  return (<div className="module-content"><h3>🔐 CRACK THE CODE</h3><p className="module-hint">Guess the 3-color code!</p>
+    <div style={{display:"flex",flexDirection:"column",gap:"0.4rem",marginBottom:"0.5rem"}}>
+      {attempts.map((a,i)=>(<div key={i} style={{display:"flex",alignItems:"center",gap:"0.5rem"}}>
+        <div style={{display:"flex",gap:"0.25rem"}}>{a.guess.map((c,j)=>(<span key={j} style={{width:"20px",height:"20px",borderRadius:"3px",background:colorHex[c]}}></span>))}</div>
+        <span style={{fontSize:"0.7rem",color:"#4caf50"}}>●{a.clues.correct}</span>
+        <span style={{fontSize:"0.7rem",color:"#f1c40f"}}>◐{a.clues.misplaced}</span>
+      </div>))}
+    </div>
+    <div style={{display:"flex",gap:"0.3rem",justifyContent:"center",marginBottom:"0.5rem"}}>
+      {guess.map((c,i)=>(<button key={i} onClick={()=>cycleColor(i)} disabled={solved} style={{width:"50px",height:"50px",borderRadius:"6px",background:colorHex[c],border:"2px solid #555",cursor:"pointer",fontSize:"0.6rem",color:c==="yellow"||c==="white"?"#333":"#fff"}}>{c}</button>))}
+    </div>
+    <button onClick={handleSubmit} disabled={solved} className={`submit-btn ${solved?"correct":""}`}>{solved?"✓ CRACKED":"GUESS ({5-attempts.length} left)"}</button></div>);
+};
+
+/* WORD BUTTONS */
+const WordButtonsModule = ({ serialNumber, onSuccess, onStrike }) => {
+  const wordSets=[["HOT","COLD","BIG","FAST"],["HAPPY","SAD","ANGRY","CALM"],["LIGHT","HEAVY","SOFT","HARD"],["BEAUTIFUL","UGLY","TALL","SHORT"]];
+  const [words] = useState(()=>wordSets[Math.floor(Math.random()*wordSets.length)]);
+  const code = getLastLetter(serialNumber).charCodeAt(0);
+  const findLongest = code<=74||code>79;
+  const correct = findLongest?words.reduce((a,b)=>a.length>=b.length?a:b):words.reduce((a,b)=>a.length<=b.length?a:b);
+  const [solved,setSolved] = useState(false);
+  return (<div className="module-content"><h3>📝 WORD BUTTONS</h3><p className="module-hint">Press the correct word</p>
+    <div className="options-grid">{words.map(w=>(<button key={w} onClick={()=>{if(solved)return;if(w===correct){setSolved(true);onSuccess();}else onStrike();}} disabled={solved} className={`option-btn ${solved&&w===correct?"correct":""}`}>{w}</button>))}</div></div>);
+};
+
+/* MEMORY */
+const MemoryModule = ({ serialNumber, onSuccess, onStrike }) => {
+  const labels = ["ONE","TWO","THREE","FOUR"];
+  const [stage,setStage] = useState(0);
+  const [history,setHistory] = useState([]);
+  const [display,setDisplay] = useState(()=>Math.floor(Math.random()*4)+1);
+  const [buttonOrder] = useState(()=>[...labels].sort(()=>Math.random()-0.5));
+  const [solved,setSolved] = useState(false);
+  // Simple rule: stage display tells you which POSITION to press (1-indexed)
+  const correctIdx = Math.min(display-1,3);
+  const handlePress = (idx) => {
+    if(solved)return;
+    if(idx===correctIdx){
+      const nh=[...history,{display,pressed:idx,label:buttonOrder[idx]}];setHistory(nh);
+      if(stage>=4){setSolved(true);onSuccess();}
+      else{setStage(s=>s+1);setDisplay(Math.floor(Math.random()*4)+1);}
+    } else onStrike();
+  };
+  return (<div className="module-content"><h3>🧠 MEMORY</h3><p className="module-hint">Stage {stage+1} of 5</p>
+    <div style={{textAlign:"center",marginBottom:"0.5rem"}}><span style={{fontFamily:"'Orbitron',sans-serif",fontSize:"2rem",color:"#0ff"}}>{display}</span></div>
+    <div style={{display:"flex",gap:"0.4rem"}}>{buttonOrder.map((label,i)=>(<button key={label} onClick={()=>handlePress(i)} disabled={solved} className="option-btn" style={{flex:1,fontSize:"0.7rem",padding:"0.6rem 0.3rem"}}>{label}</button>))}</div>
+    <div style={{display:"flex",justifyContent:"center",gap:"0.25rem",marginTop:"0.5rem"}}>{[0,1,2,3,4].map(i=>(<span key={i} style={{width:"10px",height:"10px",borderRadius:"50%",background:i<=stage?"#4caf50":"#333"}}></span>))}</div></div>);
+};
+
+/* SYMBOL PANEL */
+const SymbolPanelModule = ({ serialNumber, onSuccess, onStrike }) => {
+  const symbolSets=[{symbols:["🍎","🌳","🐟","🔥"],plant:"🌳",animal:"🐟",food:"🍎"},{symbols:["🐱","🌸","🍕","⭐"],plant:"🌸",animal:"🐱",food:"🍕"},{symbols:["🦊","🌵","🍔","💎"],plant:"🌵",animal:"🦊",food:"🍔"}];
+  const [set] = useState(()=>symbolSets[Math.floor(Math.random()*symbolSets.length)]);
+  const fd = getFirstDigit(serialNumber);
+  const correct = fd<=3?set.plant:fd<=6?set.animal:set.food;
+  const [shuffled] = useState(()=>[...set.symbols].sort(()=>Math.random()-0.5));
+  const [solved,setSolved] = useState(false);
+  return (<div className="module-content"><h3>🎨 SYMBOL PANEL</h3><p className="module-hint">Press the correct symbol</p>
+    <div className="options-grid">{shuffled.map(s=>(<button key={s} onClick={()=>{if(solved)return;if(s===correct){setSolved(true);onSuccess();}else onStrike();}} disabled={solved} className={`symbol-btn ${solved&&s===correct?"correct":""}`}>{s}</button>))}</div></div>);
+};
+
+/* COLOR SWITCHBOARD */
+const ColorSwitchboardModule = ({ serialNumber, onSuccess, onStrike }) => {
+  const directions=["UP","DOWN","LEFT","RIGHT"]; const dirArrows={UP:"↑",DOWN:"↓",LEFT:"←",RIGHT:"→"};
+  const switchColors=["red","blue","yellow","green"]; const colorHex={red:"#e74c3c",blue:"#3498db",yellow:"#f1c40f",green:"#2ecc71"};
+  const lookup={red:{UP:"RIGHT",DOWN:"LEFT",LEFT:"UP",RIGHT:"DOWN"},blue:{UP:"DOWN",DOWN:"RIGHT",LEFT:"LEFT",RIGHT:"UP"},yellow:{UP:"LEFT",DOWN:"RIGHT",LEFT:"DOWN",RIGHT:"UP"},green:{UP:"UP",DOWN:"DOWN",LEFT:"LEFT",RIGHT:"RIGHT"}};
+  const [switches,setSwitches] = useState(()=>Array.from({length:4},()=>{const c=switchColors[Math.floor(Math.random()*4)];const d=directions[Math.floor(Math.random()*4)];return{color:c,current:d,target:lookup[c][d],solved:false};}));
+  const cycle = (idx) => {
+    if(switches[idx].solved)return; const ns=[...switches];const sw={...ns[idx]};
+    sw.current=directions[(directions.indexOf(sw.current)+1)%4];if(sw.current===sw.target)sw.solved=true;ns[idx]=sw;setSwitches(ns);
+    if(ns.every(s=>s.solved))onSuccess();
+  };
+  return (<div className="module-content"><h3>🎛️ SWITCHBOARD</h3><p className="module-hint">Set each switch correctly</p>
+    <div className="switch-grid">{switches.map((sw,i)=>(<button key={i} onClick={()=>cycle(i)} disabled={sw.solved} className={`switch-btn ${sw.solved?"solved":""}`} style={{background:colorHex[sw.color]}}>
+      <span className="switch-arrow" style={{color:sw.color==="yellow"?"#333":"#fff"}}>{dirArrows[sw.current]}</span>
+      <span className="switch-dir-label" style={{color:sw.color==="yellow"?"#555":"#fffa"}}>{sw.current}</span></button>))}</div></div>);
+};
+
+/* WORLD CLOCK */
+const WorldClockModule = ({ serialNumber, onSuccess, onStrike }) => {
+  const cities=[{name:"London",offset:0},{name:"Paris",offset:1},{name:"New York",offset:-5},{name:"Tokyo",offset:9},{name:"Sydney",offset:11},{name:"Dubai",offset:4},{name:"Los Angeles",offset:-8}];
+  const [homeTime] = useState(()=>({h:Math.floor(Math.random()*12)+1,m:[0,15,30,45][Math.floor(Math.random()*4)]}));
+  const [targetCities] = useState(()=>[...cities].sort(()=>Math.random()-0.5).slice(0,3));
+  const [answers,setAnswers] = useState([{h:12,m:0},{h:12,m:0},{h:12,m:0}]);
+  const [solved,setSolved] = useState(false);
+  const taipeiOffset = 8;
+  const getTargetTime = (cityOffset) => {
+    let h = homeTime.h + (cityOffset - taipeiOffset); let m = homeTime.m;
+    while(h>12)h-=12; while(h<1)h+=12; return{h,m};
+  };
+  const adjustH = (idx,dir) => { if(solved)return; const na=[...answers];na[idx]={...na[idx],h:((na[idx].h-1+dir+12)%12)+1};setAnswers(na); };
+  const adjustM = (idx,dir) => { if(solved)return; const na=[...answers];na[idx]={...na[idx],m:(na[idx].m+dir*15+60)%60};setAnswers(na); };
+  const handleSubmit = () => {
+    if(solved)return;
+    const allCorrect = targetCities.every((c,i)=>{const t=getTargetTime(c.offset);return answers[i].h===t.h&&answers[i].m===t.m;});
+    if(allCorrect){setSolved(true);onSuccess();}else onStrike();
+  };
+  return (<div className="module-content"><h3>🌍 WORLD CLOCK</h3>
+    <div style={{textAlign:"center",marginBottom:"0.5rem"}}><span style={{color:"#888",fontSize:"0.7rem"}}>Taipei:</span> <span style={{color:"#0f0",fontFamily:"'Orbitron',sans-serif"}}>{homeTime.h}:{String(homeTime.m).padStart(2,"0")}</span></div>
+    <div style={{display:"flex",flexDirection:"column",gap:"0.5rem"}}>
+      {targetCities.map((city,i)=>(<div key={city.name} style={{background:"#0a1520",borderRadius:"6px",padding:"0.5rem",display:"flex",alignItems:"center",justifyContent:"space-between"}}>
+        <span style={{color:"#f1c40f",fontSize:"0.7rem",width:"70px"}}>{city.name}</span>
+        <div style={{display:"flex",alignItems:"center",gap:"0.25rem"}}>
+          <button onClick={()=>adjustH(i,-1)} className="clock-btn" style={{padding:"0.2rem 0.4rem",fontSize:"0.7rem"}}>◀</button>
+          <span style={{color:"#0ff",fontFamily:"'Orbitron',sans-serif",fontSize:"0.9rem",minWidth:"3.5rem",textAlign:"center"}}>{answers[i].h}:{String(answers[i].m).padStart(2,"0")}</span>
+          <button onClick={()=>adjustH(i,1)} className="clock-btn" style={{padding:"0.2rem 0.4rem",fontSize:"0.7rem"}}>▶</button>
+          <button onClick={()=>adjustM(i,1)} className="clock-btn" style={{padding:"0.2rem 0.4rem",fontSize:"0.7rem"}}>+15</button>
+        </div>
+      </div>))}
+    </div>
+    <button onClick={handleSubmit} disabled={solved} className={`submit-btn ${solved?"correct":""}`} style={{marginTop:"0.5rem"}}>{solved?"✓ CORRECT":"SUBMIT"}</button></div>);
+};
+
+/* COMBINATION LOCK */
+const CombinationLockModule = ({ serialNumber, onSuccess, onStrike }) => {
+  const letterValues={A:5,B:12,C:25,D:33,E:8,F:18,G:15,H:22,I:30,J:7,K:19,L:35,M:10,N:27,O:3,P:14,Q:38,R:20,S:9,T:31,U:16,V:24,W:2,X:36,Y:11,Z:28};
+  const fl = getFirstLetter(serialNumber);
+  const digits = getAllDigits(serialNumber);
+  const d1=parseInt(digits[0])||0; const d2=parseInt(digits[1])||0; const d3=parseInt(digits[2])||0;
+  const n1 = (letterValues[fl]||5)%40;
+  const n2 = (n1+d1+d2)%40;
+  const n3 = (d2*3+d3)%40;
+  const combo = [n1,n2,n3];
+  const [dialPos,setDialPos] = useState(0);
+  const [stage,setStage] = useState(0); // 0=right to n1, 1=left to n2, 2=right to n3
+  const [solved,setSolved] = useState(false);
+  const turnDial = (dir) => {// dir: 1=clockwise(right), -1=counter-clockwise(left)
+    if(solved)return; setDialPos(p=>(p+dir+40)%40);
+  };
+  const tryUnlock = () => {
+    if(solved)return;
+    if(dialPos===combo[stage]){
+      if(stage>=2){setSolved(true);onSuccess();}
+      else setStage(s=>s+1);
+    }
+  };
+  return (<div className="module-content"><h3>🔒 COMBINATION LOCK</h3><p className="module-hint">Stage {stage+1}/3 — Turn {stage%2===0?"RIGHT":"LEFT"}</p>
+    <div style={{textAlign:"center",margin:"0.5rem 0"}}>
+      <div style={{fontFamily:"'Orbitron',sans-serif",fontSize:"2.5rem",color:"#0ff"}}>{dialPos}</div>
+      <div style={{display:"flex",justifyContent:"center",gap:"0.5rem",marginTop:"0.5rem"}}>
+        <button onClick={()=>turnDial(-1)} className="clock-btn" style={{padding:"0.5rem 1rem"}}>◀ LEFT</button>
+        <button onClick={()=>turnDial(1)} className="clock-btn" style={{padding:"0.5rem 1rem"}}>RIGHT ▶</button>
+      </div>
+      <div style={{display:"flex",justifyContent:"center",gap:"0.25rem",margin:"0.5rem 0"}}>{[0,1,2].map(i=>(<span key={i} style={{width:"12px",height:"12px",borderRadius:"50%",background:i<stage?"#4caf50":i===stage?"#ffcc00":"#333"}}></span>))}</div>
+    </div>
+    <button onClick={tryUnlock} disabled={solved} className={`submit-btn ${solved?"correct":""}`}>{solved?"✓ UNLOCKED":"TRY UNLOCK"}</button></div>);
+};
+
+/* ===== MODULE WRAPPER ===== */
+const ModuleWrapper = ({ module, serialNumber, onComplete, onStrike }) => {
+  const [status,setStatus] = useState("active");
+  const handleSuccess = () => {setStatus("success");setTimeout(()=>onComplete(module.id),600);};
+  const components = {colorWires:ColorWiresModule,userName:UserNameModule,monsterLab:MonsterLabModule,guessWho:GuessWhoModule,vendingMachine:VendingMachineModule,symbolKeypad:SymbolKeypadModule,numberKeypad:NumberKeypadModule,bigButton:BigButtonModule,sliders:SlidersModule,crackTheCode:CrackTheCodeModule,wordButtons:WordButtonsModule,memory:MemoryModule,symbolPanel:SymbolPanelModule,colorSwitchboard:ColorSwitchboardModule,worldClock:WorldClockModule,combinationLock:CombinationLockModule};
+  const Comp = components[module.type];
+  return (<div className={`module-wrapper ${status}`}>
+    <div className="module-status-indicator">{status==="success"&&<span className="status-icon">✓</span>}{status==="active"&&<span className="status-dot"></span>}</div>
+    {status==="success"?(<div className="module-complete"><span className="complete-icon">✅</span><span>MODULE DEFUSED</span></div>):Comp?(<Comp serialNumber={serialNumber} onSuccess={handleSuccess} onStrike={onStrike}/>):null}</div>);
+};
+
+/* ===== EXPERT MANUAL ===== */
+const ExpertManual = () => {
+  const [openSection,setOpenSection] = useState(null);
+  const toggle = (id) => setOpenSection(o=>o===id?null:id);
+  const S = ({id,title,children}) => (<div className="manual-section"><h2 onClick={()=>toggle(id)} style={{cursor:"pointer"}}>{title} {openSection===id?"▼":"▶"}</h2>{openSection===id&&<div>{children}</div>}</div>);
+  return (<div className="manual-page-content">
+    <h1 className="manual-title">📖 BOMB DEFUSAL MANUAL</h1><p className="manual-subtitle">CLASSIFIED — For Experts Only · Tap a section to expand</p>
+
+    <S id="wires" title="🔌 Color Wires">
+      <p><strong>Ask:</strong> "How many wires do you see?" and "What color is each wire, from top to bottom?"</p>
+      <p><strong>3 wires:</strong></p>
+      <p>1. If there are no red wires → cut the <strong>2nd</strong> wire.</p>
+      <p>2. If the last wire is white → cut the <strong>last</strong> wire.</p>
+      <p>3. If there is more than one blue wire → cut the <strong>last blue</strong> wire.</p>
+      <p>4. Otherwise → cut the <strong>last</strong> wire.</p>
+      <p><strong>4 wires:</strong></p>
+      <p>1. If there is more than one red wire AND the last digit of the serial number is odd → cut the <strong>last red</strong> wire.</p>
+      <p>2. If the last wire is yellow AND there are no red wires → cut the <strong>1st</strong> wire.</p>
+      <p>3. If there is exactly one blue wire → cut the <strong>1st</strong> wire.</p>
+      <p>4. If there is more than one yellow wire → cut the <strong>last</strong> wire.</p>
+      <p>5. Otherwise → cut the <strong>2nd</strong> wire.</p>
+      <p><strong>5 wires:</strong></p>
+      <p>1. If the last wire is black AND the last serial digit is odd → cut the <strong>4th</strong> wire.</p>
+      <p>2. If there is exactly one red wire AND more than one yellow → cut the <strong>1st</strong> wire.</p>
+      <p>3. If there are no black wires → cut the <strong>2nd</strong> wire.</p>
+      <p>4. Otherwise → cut the <strong>1st</strong> wire.</p>
+      <p style={{color:"#888",fontStyle:"italic",marginTop:"0.5rem"}}>Follow the rules in order. Stop at the first rule that applies.</p>
+    </S>
+
+    <S id="user" title="👤 User Name">
+      <p><strong>Ask:</strong> "What is the serial number?"</p>
+      <p><strong>Step 1:</strong> Find the <strong>last LETTER</strong> in the serial number.</p>
+      <p><strong>Step 2:</strong> Look up the name that starts with that letter in the table below.</p>
+      <p><strong>Step 3:</strong> Tell the Defuser: "Press [name]."</p>
+      <table className="manual-table"><thead><tr><th>Letter</th><th>Name</th><th>Letter</th><th>Name</th><th>Letter</th><th>Name</th></tr></thead><tbody>
+        <tr><td>A</td><td>Alice</td><td>J</td><td>Jack</td><td>S</td><td>Sam</td></tr>
+        <tr><td>B</td><td>Bob</td><td>K</td><td>Kate</td><td>T</td><td>Tom</td></tr>
+        <tr><td>C</td><td>Charlie</td><td>L</td><td>Leo</td><td>U</td><td>Uma</td></tr>
+        <tr><td>D</td><td>David</td><td>M</td><td>Mary</td><td>V</td><td>Vera</td></tr>
+        <tr><td>E</td><td>Eve</td><td>N</td><td>Noah</td><td>W</td><td>Will</td></tr>
+        <tr><td>F</td><td>Frank</td><td>O</td><td>Olive</td><td>X</td><td>Xena</td></tr>
+        <tr><td>G</td><td>Grace</td><td>P</td><td>Peter</td><td>Y</td><td>Yuki</td></tr>
+        <tr><td>H</td><td>Henry</td><td>Q</td><td>Quinn</td><td>Z</td><td>Zara</td></tr>
+        <tr><td>I</td><td>Iris</td><td>R</td><td>Rose</td><td></td><td></td></tr>
+      </tbody></table>
+    </S>
+
+    <S id="monster" title="👾 Monster Lab">
+      <p><strong>Ask:</strong> "How many eyes does the monster have?" "What kind of arms?" (tentacles, robot, or furry) "What color is its skin?" (purple, green, or orange)</p>
+      <p><strong>Step 1:</strong> Find the <strong>last NUMBER</strong> in the serial number.</p>
+      <p><strong>Step 2:</strong> Use the matching rule set below:</p>
+      <table className="manual-table"><thead><tr><th>Last Digit</th><th>Use This Feature</th><th>Lookup</th></tr></thead><tbody>
+        <tr><td>0, 1, 2</td><td>EYES</td><td>1 eye=MEEP, 2=BLIP, 3=ZORG, 4=FLOP</td></tr>
+        <tr><td>3, 4, 5</td><td>SKIN COLOR</td><td>purple=ZORG, green=BLIP, orange=FLOP</td></tr>
+        <tr><td>6, 7</td><td>ARMS</td><td>tentacles=BLIP, robot=MEEP, furry=FLOP</td></tr>
+        <tr><td>8, 9</td><td>EYES (advanced)</td><td>eyes mod 4 → [ZORG, BLIP, FLOP, MEEP]</td></tr>
+      </tbody></table>
+      <p><strong>Step 3:</strong> Tell the Defuser: "Press [monster name]."</p>
+    </S>
+
+    <S id="guess" title="🕵️ Guess Who">
+      <p><strong>Ask:</strong> "What color are the eyes?" (Brown, Blue, or Green) and "What color is the hair?" (Black, Brown, Blonde, Red, or Gray)</p>
+      <p><strong>Step:</strong> Find the matching agent in the table and tell the Defuser to press it.</p>
+      <table className="manual-table"><thead><tr><th>Eyes ↓ Hair →</th><th>Black</th><th>Brown</th><th>Blonde</th><th>Red</th><th>Gray</th></tr></thead><tbody>
+        <tr><td><strong>Brown</strong></td><td>Rat</td><td>Ox</td><td>Tiger</td><td>Rabbit</td><td>Dragon</td></tr>
+        <tr><td><strong>Blue</strong></td><td>Snake</td><td>Horse</td><td>Goat</td><td>Monkey</td><td>Rooster</td></tr>
+        <tr><td><strong>Green</strong></td><td>Dog</td><td>Pig</td><td>Panda</td><td>Hippo</td><td>Giraffe</td></tr>
+      </tbody></table>
+    </S>
+
+    <S id="vending" title="🏭 Vending Machine">
+      <p><strong>Ask:</strong> "What items do you see?" and "How much does each one cost?" and "What is the serial number?"</p>
+      <p><strong>Step 1:</strong> Find the <strong>last NUMBER</strong> in the serial number.</p>
+      <p><strong>Step 2:</strong> Use the matching rule:</p>
+      <table className="manual-table"><thead><tr><th>Last Digit</th><th>Buy This Item</th></tr></thead><tbody>
+        <tr><td>0 or 1</td><td>The <strong>cheapest</strong> item</td></tr>
+        <tr><td>2 or 3</td><td>The <strong>most expensive</strong> item</td></tr>
+        <tr><td>4 or 5</td><td>An item that costs <strong>more than $1.00 but less than $2.00</strong></td></tr>
+        <tr><td>6 or 7</td><td>A <strong>food</strong> item (not a drink)</td></tr>
+        <tr><td>8 or 9</td><td>An item with a price <strong>ending in .50</strong></td></tr>
+      </tbody></table>
+      <p><strong>Step 3:</strong> Tell the Defuser: "Buy the [item name]."</p>
+    </S>
+
+    <S id="symbol" title="🔣 Symbol Keypad">
+      <p><strong>Ask:</strong> "What symbols do you see on the buttons?"</p>
+      <p><strong>Step 1:</strong> Find the column below that contains <strong>ALL</strong> the symbols the Defuser describes.</p>
+      <p><strong>Step 2:</strong> Tell the Defuser to press them in <strong>column order</strong> (top to bottom).</p>
+      <table className="manual-table"><thead><tr><th>Col 1</th><th>Col 2</th><th>Col 3</th><th>Col 4</th></tr></thead><tbody>
+        <tr><td>©</td><td>☎</td><td>©</td><td>★</td></tr>
+        <tr><td>★</td><td>★</td><td>☎</td><td>©</td></tr>
+        <tr><td>☆</td><td>✿</td><td>✿</td><td>☎</td></tr>
+        <tr><td>❖</td><td>❖</td><td>☆</td><td>✿</td></tr>
+      </tbody></table>
+      <p style={{color:"#888",fontStyle:"italic"}}>Example: If symbols are ©, ★, ☆, ❖ → that's Column 1. Press in order: © then ★ then ☆ then ❖.</p>
+    </S>
+
+    <S id="keypad" title="🔢 Number Keypad">
+      <p><strong>Ask:</strong> "What is the serial number?"</p>
+      <p><strong>Step 1:</strong> Find the <strong>first LETTER</strong> in the serial number.</p>
+      <p><strong>Step 2:</strong> If the letter is <strong>A through M</strong> → tell the Defuser: "Enter all numbers from 0 to 9, going UP (0, 1, 2, 3...)."</p>
+      <p>If the letter is <strong>N through Z</strong> → tell the Defuser: "Enter all numbers from 9 to 0, going DOWN (9, 8, 7, 6...)."</p>
+    </S>
+
+    <S id="bigbtn" title="🔴 Big Button">
+      <p><strong>Ask:</strong> "What color is the button?" and "What word is on the button?" and "What is the last digit of the serial number?"</p>
+      <p><strong>Use these rules in order (stop at the first match):</strong></p>
+      <p>1. If the button is <strong>blue</strong> AND says <strong>HOLD</strong> → tell them to <strong>HOLD for 2+ seconds</strong>.</p>
+      <p>2. If the button is <strong>red</strong> AND says <strong>PRESS</strong> → tell them to do a <strong>quick press</strong>.</p>
+      <p>3. If the button is <strong>white</strong> → tell them to <strong>HOLD for 2+ seconds</strong>.</p>
+      <p>4. If the last serial digit is <strong>8 or 9</strong> → tell them to <strong>HOLD for 2+ seconds</strong>.</p>
+      <p>5. Otherwise → tell them to do a <strong>quick press</strong> (tap and release fast!).</p>
+      <p style={{color:"#888",fontStyle:"italic"}}>Quick press = less than half a second. Hold = press and keep holding for 2 seconds, then release.</p>
+    </S>
+
+    <S id="sliders" title="🎚️ Sliders">
+      <p><strong>Ask:</strong> "What is the serial number?"</p>
+      <p><strong>Step 1:</strong> Find the <strong>first three NUMBERS</strong> in the serial number.</p>
+      <p><strong>Step 2:</strong> Tell the Defuser:</p>
+      <p>• "Set the <strong>red</strong> slider to <strong>[1st digit]</strong>."</p>
+      <p>• "Set the <strong>blue</strong> slider to <strong>[2nd digit]</strong>."</p>
+      <p>• "Set the <strong>yellow</strong> slider to <strong>[3rd digit]</strong>."</p>
+      <p><strong>Step 3:</strong> Tell them to press SUBMIT.</p>
+      <p style={{color:"#888",fontStyle:"italic"}}>Example: Serial = AB325-C4D67 → digits are 3, 2, 5. Red=3, Blue=2, Yellow=5.</p>
+    </S>
+
+    <S id="crack" title="🔐 Crack the Code">
+      <p><strong>How it works:</strong> The Defuser must guess a secret 3-color code. Colors are: red, green, yellow, blue, white.</p>
+      <p><strong>After each guess, the Defuser sees clues:</strong></p>
+      <p>• <strong>● (solid dot)</strong> = right color in the right position</p>
+      <p>• <strong>◐ (half dot)</strong> = right color but wrong position</p>
+      <p><strong>Your job:</strong> Help the Defuser narrow down the code using logic!</p>
+      <p>• Ask: "What colors did you guess?" and "How many solid dots? How many half dots?"</p>
+      <p>• Use the clues to suggest the next guess. They have <strong>5 attempts</strong>.</p>
+      <p style={{color:"#888",fontStyle:"italic"}}>Tip: Start with 3 different colors to learn the most from the first clue.</p>
+    </S>
+
+    <S id="word" title="📝 Word Buttons">
+      <p><strong>Ask:</strong> "What words do you see on the buttons?" and "What is the serial number?"</p>
+      <p><strong>Step 1:</strong> Find the <strong>last LETTER</strong> in the serial number.</p>
+      <p><strong>Step 2:</strong></p>
+      <p>• If the letter is <strong>A through J</strong> → press the word with the <strong>MOST</strong> letters.</p>
+      <p>• If the letter is <strong>K through O</strong> → press the word with the <strong>FEWEST</strong> letters.</p>
+      <p>• If the letter is <strong>P through Z</strong> → press the word with the <strong>MOST</strong> letters.</p>
+      <p><strong>Step 3:</strong> Count the letters in each word and tell the Defuser which one to press.</p>
+    </S>
+
+    <S id="mem" title="🧠 Memory">
+      <p><strong>How it works:</strong> There are 5 stages. Each stage shows a number (1-4) on the display and four buttons labeled ONE, TWO, THREE, FOUR.</p>
+      <p><strong>The rule:</strong> The number on the display tells you which <strong>POSITION</strong> to press.</p>
+      <p>• Display shows <strong>1</strong> → press the <strong>1st button</strong> (leftmost).</p>
+      <p>• Display shows <strong>2</strong> → press the <strong>2nd button</strong> from the left.</p>
+      <p>• Display shows <strong>3</strong> → press the <strong>3rd button</strong> from the left.</p>
+      <p>• Display shows <strong>4</strong> → press the <strong>4th button</strong> (rightmost).</p>
+      <p><strong>Ask:</strong> "What number is on the display?"</p>
+      <p style={{color:"#888",fontStyle:"italic"}}>Important: The button LABELS change position each stage! Always count from the left, don't go by the word on the button.</p>
+    </S>
+
+    <S id="sympanel" title="🎨 Symbol Panel">
+      <p><strong>Ask:</strong> "What symbols do you see?" and "What is the serial number?"</p>
+      <p><strong>Step 1:</strong> Find the <strong>first NUMBER</strong> in the serial number.</p>
+      <p><strong>Step 2:</strong></p>
+      <p>• If the digit is <strong>0, 1, 2, or 3</strong> → press the <strong>PLANT</strong> symbol (tree, flower, cactus).</p>
+      <p>• If the digit is <strong>4, 5, or 6</strong> → press the <strong>ANIMAL</strong> symbol (cat, fox, fish).</p>
+      <p>• If the digit is <strong>7, 8, or 9</strong> → press the <strong>FOOD</strong> symbol (apple, pizza, burger).</p>
+      <p style={{color:"#888",fontStyle:"italic"}}>Ask the Defuser to describe each symbol. Help them identify which is a plant, animal, or food.</p>
+    </S>
+
+    <S id="switch" title="🎛️ Switchboard">
+      <p><strong>Ask:</strong> "What color is each switch?" and "What direction is it pointing?" (up, down, left, or right)</p>
+      <p><strong>Step:</strong> For each switch, find its color and current direction in the table. Tell the Defuser the <strong>target direction</strong>. They tap the switch to cycle through directions.</p>
+      <table className="manual-table"><thead><tr><th>Color</th><th>If pointing UP, set to:</th><th>DOWN →</th><th>LEFT →</th><th>RIGHT →</th></tr></thead><tbody>
+        <tr><td className="color-cell red">Red</td><td>RIGHT</td><td>LEFT</td><td>UP</td><td>DOWN</td></tr>
+        <tr><td className="color-cell blue">Blue</td><td>DOWN</td><td>RIGHT</td><td>LEFT</td><td>UP</td></tr>
+        <tr><td className="color-cell yellow">Yellow</td><td>LEFT</td><td>RIGHT</td><td>DOWN</td><td>UP</td></tr>
+        <tr><td className="color-cell green">Green</td><td>UP</td><td>DOWN</td><td>LEFT</td><td>RIGHT</td></tr>
+      </tbody></table>
+      <p style={{color:"#888",fontStyle:"italic"}}>All four switches must be correct. A green border appears when a switch is set correctly.</p>
+    </S>
+
+    <S id="world" title="🌍 World Clock">
+      <p><strong>Ask:</strong> "What time does the Taipei clock show?" and "What cities do you see?"</p>
+      <p><strong>Step 1:</strong> Note the Taipei time (the home clock).</p>
+      <p><strong>Step 2:</strong> For each city, calculate the time using the offsets below. Add or subtract hours from Taipei time.</p>
+      <table className="manual-table"><thead><tr><th>City</th><th>Offset from Taipei</th></tr></thead><tbody>
+        <tr><td>London</td><td>−8 hours</td></tr>
+        <tr><td>Paris</td><td>−7 hours</td></tr>
+        <tr><td>New York</td><td>−13 hours</td></tr>
+        <tr><td>Tokyo</td><td>+1 hour</td></tr>
+        <tr><td>Sydney</td><td>+3 hours</td></tr>
+        <tr><td>Dubai</td><td>−4 hours</td></tr>
+        <tr><td>Los Angeles</td><td>−16 hours</td></tr>
+      </tbody></table>
+      <p><strong>Step 3:</strong> Tell the Defuser: "Set [city] to [time]." They use ◀▶ for hours and +15 for minutes.</p>
+      <p style={{color:"#888",fontStyle:"italic"}}>If the result is negative or over 12, wrap around (e.g., -2 becomes 10, 14 becomes 2).</p>
+    </S>
+
+    <S id="combo" title="🔒 Combination Lock">
+      <p><strong>Ask:</strong> "What is the serial number?"</p>
+      <p><strong>Step 1:</strong> Find the <strong>first LETTER</strong> and look up its value:</p>
+      <table className="manual-table"><thead><tr><th>Letter</th><th>Value</th><th>Letter</th><th>Value</th><th>Letter</th><th>Value</th></tr></thead><tbody>
+        <tr><td>A</td><td>5</td><td>J</td><td>7</td><td>S</td><td>9</td></tr>
+        <tr><td>B</td><td>12</td><td>K</td><td>19</td><td>T</td><td>31</td></tr>
+        <tr><td>C</td><td>25</td><td>L</td><td>35</td><td>U</td><td>16</td></tr>
+        <tr><td>D</td><td>33</td><td>M</td><td>10</td><td>V</td><td>24</td></tr>
+        <tr><td>E</td><td>8</td><td>N</td><td>27</td><td>W</td><td>2</td></tr>
+        <tr><td>F</td><td>18</td><td>O</td><td>3</td><td>X</td><td>36</td></tr>
+        <tr><td>G</td><td>15</td><td>P</td><td>14</td><td>Y</td><td>11</td></tr>
+        <tr><td>H</td><td>22</td><td>Q</td><td>38</td><td>Z</td><td>28</td></tr>
+        <tr><td>I</td><td>30</td><td>R</td><td>20</td><td></td><td></td></tr>
+      </tbody></table>
+      <p><strong>Step 2:</strong> Calculate the three numbers:</p>
+      <p>• <strong>N1</strong> = letter value mod 40</p>
+      <p>• <strong>N2</strong> = (N1 + 1st digit + 2nd digit) mod 40</p>
+      <p>• <strong>N3</strong> = (2nd digit × 3 + 3rd digit) mod 40</p>
+      <p><strong>Step 3:</strong> Tell the Defuser the directions and numbers:</p>
+      <p>1. "Turn <strong>RIGHT</strong> to [N1]."</p>
+      <p>2. "Turn <strong>LEFT</strong> to [N2]."</p>
+      <p>3. "Turn <strong>RIGHT</strong> to [N3]."</p>
+      <p>4. "Press UNLOCK."</p>
+      <p style={{color:"#888",fontStyle:"italic"}}>The pattern is always RIGHT → LEFT → RIGHT. "Mod 40" means if the number is 40 or more, subtract 40.</p>
+    </S>
+  </div>);
+};
+
+/* ===== SETTINGS / BOMB / WIN-LOSE / APP — same structure as before ===== */
+const SettingsPanel = ({onStartGame}) => {
+  const [timer,setTimer]=useState(300);const [moduleCount,setModuleCount]=useState(3);
+  const [sel,setSel]=useState(["colorWires","userName","monsterLab"]);
+  const toggle=(id)=>setSel(p=>p.includes(id)?p.filter(m=>m!==id):[...p,id]);
+  const handleStart=()=>{if(sel.length<moduleCount)return;onStartGame({timer,modules:sel.slice(0,moduleCount).map(id=>MODULES_LIST.find(m=>m.id===id)),moduleCount});};
+  const presets=[{l:"2:00",v:120},{l:"3:00",v:180},{l:"5:00",v:300},{l:"7:00",v:420},{l:"10:00",v:600}];
+  return (<div className="settings-panel"><h2>⚙️ MISSION SETUP</h2>
+    <div className="setting-group"><label>TIMER</label><div className="timer-selector">{presets.map(p=>(<button key={p.v} onClick={()=>setTimer(p.v)} className={`timer-btn ${timer===p.v?"active":""}`}>{p.l}</button>))}</div></div>
+    <div className="setting-group"><label>MODULES: {moduleCount}</label><input type="range" min={1} max={8} value={moduleCount} onChange={e=>setModuleCount(Number(e.target.value))} className="module-slider"/></div>
+    <div className="setting-group"><label>SELECT MODULES ({sel.length} selected)</label>
+      <div className="module-toggles">{MODULES_LIST.map(mod=>(<button key={mod.id} onClick={()=>toggle(mod.id)} className={`module-toggle ${sel.includes(mod.id)?"active":""}`}><span className="toggle-name">{mod.name}</span><span className="toggle-diff">{mod.difficulty}</span></button>))}</div></div>
+    <button onClick={handleStart} disabled={sel.length<moduleCount} className="start-game-btn">🚀 START MISSION</button>
+    {sel.length<moduleCount&&<p className="warning-text">Select at least {moduleCount} modules!</p>}</div>);
+};
+
+const BombComponent = ({config,onGameEnd}) => {
+  const [timeLeft,setTimeLeft]=useState(config.timer);const [strikes,setStrikes]=useState(0);const [completed,setCompleted]=useState([]);
+  const [serialNumber]=useState(generateSerialNumber);const [gameStatus,setGameStatus]=useState("countdown");const [shake,setShake]=useState(false);const [countdown,setCountdown]=useState(3);const maxStrikes=3;
+  useEffect(()=>{if(gameStatus!=="countdown")return;if(countdown<=0){setGameStatus("playing");return;}const t=setTimeout(()=>setCountdown(c=>c-1),1000);return()=>clearTimeout(t);},[gameStatus,countdown]);
+  useEffect(()=>{if(gameStatus!=="playing")return;const t=setInterval(()=>setTimeLeft(p=>{if(p<=1){setGameStatus("lost");return 0;}return p-1;}),1000);return()=>clearInterval(t);},[gameStatus]);
+  useEffect(()=>{if(completed.length===config.modules.length&&config.modules.length>0&&gameStatus==="playing")setGameStatus("won");},[completed,config.modules.length,gameStatus]);
+  useEffect(()=>{if(gameStatus==="won")onGameEnd("win",timeLeft);if(gameStatus==="lost")onGameEnd("lose",strikes>=maxStrikes?"strikes":"time");},[gameStatus]);
+  const handleStrike=()=>{const s=strikes+1;setStrikes(s);setShake(true);setTimeout(()=>setShake(false),500);if(s>=maxStrikes)setGameStatus("lost");};
+  const tc=timeLeft<30?"#ff0000":timeLeft<60?"#ff8800":"#00ff00";
+  return (<div className={`bomb-container ${shake?"shake":""}`}>
+    {gameStatus==="countdown"&&<div className="countdown-overlay"><div className="countdown-number">{countdown>0?countdown:"GO!"}</div></div>}
+    <div className="bomb-header"><div className="timer-display" style={{color:tc,textShadow:`0 0 15px ${tc}`}}>{Math.floor(timeLeft/60)}:{String(timeLeft%60).padStart(2,"0")}</div>
+      <div className="serial-display"><span className="serial-label">SN:</span><span className="serial-value">{serialNumber}</span></div>
+      <div className="strikes-display">{Array.from({length:maxStrikes},(_,i)=>(<span key={i} className={`strike-indicator ${i<strikes?"active":""}`}>{i<strikes?"❌":"⭕"}</span>))}</div></div>
+    <div className="modules-grid">{config.modules.map(mod=>(<ModuleWrapper key={mod.id} module={mod} serialNumber={serialNumber} onComplete={id=>setCompleted(p=>[...p,id])} onStrike={handleStrike}/>))}</div></div>);
+};
+
+const WinScreen=({timeLeft,onPlayAgain})=>(<div className="game-over-screen win"><div className="confetti-bg"></div><h1>🎉 BOMB DEFUSED!</h1><p className="result-time">Time: {Math.floor(timeLeft/60)}:{String(timeLeft%60).padStart(2,"0")}</p><p className="result-message">Outstanding teamwork!</p><button className="play-again-btn win" onClick={onPlayAgain}>PLAY AGAIN</button></div>);
+const LoseScreen=({reason,onPlayAgain})=>(<div className="game-over-screen lose"><div className="explosion-bg"></div><h1>💥 MISSION FAILED</h1><p className="result-reason">{reason==="time"?"Time ran out!":"Too many mistakes!"}</p><p className="result-message">Don't give up — try again!</p><button className="play-again-btn lose" onClick={onPlayAgain}>TRY AGAIN</button></div>);
+
+function App(){
+  const [screen,setScreen]=useState("menu");const [config,setConfig]=useState(null);const [showManual,setShowManual]=useState(false);const [gameResult,setGameResult]=useState(null);const [gameKey,setGameKey]=useState(0);
+  const reset=()=>{setScreen("menu");setConfig(null);setShowManual(false);setGameResult(null);setGameKey(k=>k+1);};
+  const startGame=(cfg)=>{setConfig(cfg);setGameResult(null);setGameKey(k=>k+1);setScreen("playing");};
+  const endGame=(result,detail)=>{setGameResult({result,detail});setScreen(result==="win"?"win":"lose");};
+  return (<div className="app">
+    <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&family=Share+Tech+Mono&family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet"/>
+    <style>{`
+      *{margin:0;padding:0;box-sizing:border-box;}
+      .app{min-height:100vh;background:linear-gradient(135deg,#667eea 0%,#764ba2 15%,#2d1b4e 35%,#1a1a2e 50%,#0a0e17 100%);color:#eee;font-family:'Share Tech Mono','Courier New',monospace;}
+      .menu-screen{display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:100vh;text-align:center;position:relative;overflow:hidden;}
+      .menu-screen::before{content:'';position:absolute;inset:0;background:radial-gradient(ellipse at center,rgba(102,126,234,0.15) 0%,transparent 70%);pointer-events:none;}
+      .bomb-icon{font-size:8rem;margin-bottom:2rem;animation:bombFloat 4s ease-in-out infinite;filter:drop-shadow(0 0 30px rgba(255,100,0,0.3));}
+      @keyframes bombFloat{0%,100%{transform:translateY(0) rotate(-5deg);}50%{transform:translateY(-20px) rotate(5deg);}}
+      .game-title{font-family:'Orbitron',sans-serif;font-size:3rem;font-weight:900;color:#ff4444;text-shadow:0 0 40px rgba(255,68,68,0.4);letter-spacing:4px;margin-bottom:0.5rem;animation:titlePulse 3s ease-in-out infinite;}
+      @keyframes titlePulse{0%,100%{filter:brightness(1);}50%{filter:brightness(1.2);}}
+      .game-subtitle{font-size:1rem;color:#888;margin-bottom:3rem;letter-spacing:8px;text-transform:uppercase;}
+      .menu-buttons{display:flex;flex-direction:column;gap:1rem;z-index:1;}
+      .menu-btn{font-family:'Orbitron',sans-serif;font-size:1.1rem;padding:1rem 3rem;border:2px solid;background:transparent;cursor:pointer;transition:all 0.3s;letter-spacing:2px;}
+      .menu-btn.primary{border-color:#ff4444;color:#ff4444;}.menu-btn.primary:hover{background:#ff4444;color:#000;box-shadow:0 0 30px rgba(255,68,68,0.5);}
+      .menu-btn.secondary{border-color:#4488ff;color:#4488ff;}.menu-btn.secondary:hover{background:#4488ff;color:#000;box-shadow:0 0 30px rgba(68,136,255,0.5);}
+      .settings-panel{max-width:600px;margin:2rem auto;padding:2rem;background:rgba(20,20,35,0.95);border:1px solid #333;border-radius:8px;}
+      .settings-panel h2{font-family:'Orbitron',sans-serif;color:#ffcc00;margin-bottom:2rem;text-align:center;}
+      .setting-group{margin-bottom:2rem;}.setting-group label{display:block;color:#aaa;margin-bottom:0.75rem;font-size:0.9rem;text-transform:uppercase;letter-spacing:1px;}
+      .timer-selector{display:flex;gap:0.5rem;flex-wrap:wrap;}
+      .timer-btn{padding:0.75rem 1.25rem;background:#1a1a2e;border:1px solid #444;color:#888;cursor:pointer;transition:all 0.2s;font-family:'Share Tech Mono',monospace;}
+      .timer-btn.active{background:#ff4444;border-color:#ff4444;color:#000;font-weight:bold;}.timer-btn:hover:not(.active){border-color:#888;color:#fff;}
+      .module-slider{width:100%;height:8px;background:#333;border-radius:4px;appearance:none;cursor:pointer;}.module-slider::-webkit-slider-thumb{appearance:none;width:24px;height:24px;background:#ffcc00;border-radius:50%;cursor:pointer;}
+      .module-toggles{display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:0.6rem;}
+      .module-toggle{padding:0.75rem;background:#1a1a2e;border:1px solid #333;color:#666;cursor:pointer;transition:all 0.2s;display:flex;flex-direction:column;align-items:center;gap:0.2rem;font-family:'Share Tech Mono',monospace;font-size:0.8rem;}
+      .module-toggle.active{border-color:#4caf50;color:#4caf50;background:rgba(76,175,80,0.1);}.module-toggle:hover:not(.active){border-color:#666;color:#aaa;}
+      .toggle-name{font-size:0.8rem;}.toggle-diff{font-size:0.65rem;opacity:0.7;}
+      .start-game-btn{width:100%;padding:1.25rem;font-family:'Orbitron',sans-serif;font-size:1.2rem;background:linear-gradient(135deg,#ff4444,#ff8800);border:none;color:#000;cursor:pointer;transition:all 0.3s;letter-spacing:2px;margin-top:1rem;font-weight:bold;}
+      .start-game-btn:hover:not(:disabled){transform:scale(1.02);box-shadow:0 0 30px rgba(255,100,0,0.5);}.start-game-btn:disabled{opacity:0.5;cursor:not-allowed;}
+      .warning-text{color:#ff8800;text-align:center;margin-top:1rem;font-size:0.9rem;}
+      .back-btn{position:fixed;top:1rem;left:1rem;padding:0.5rem 1rem;background:transparent;border:1px solid #666;color:#888;font-family:'Share Tech Mono',monospace;cursor:pointer;z-index:100;transition:all 0.2s;}.back-btn:hover{border-color:#fff;color:#fff;}
+      .manual-toggle{position:fixed;top:1rem;right:1rem;padding:0.5rem 1rem;border:1px solid #f1c40f;background:transparent;color:#f1c40f;cursor:pointer;z-index:100;font-family:'Share Tech Mono',monospace;border-radius:4px;transition:all 0.2s;}
+      .manual-toggle.active{background:#f1c40f;color:#000;}
+      .manual-overlay{position:fixed;top:0;right:-450px;width:min(420px,90vw);height:100vh;overflow-y:auto;z-index:90;box-shadow:-4px 0 30px rgba(0,0,0,0.7);transition:right 0.3s ease;}.manual-overlay.visible{right:0;}
+      .bomb-container{background:linear-gradient(180deg,#1a1a2e 0%,#12101f 100%);border:3px solid #3a3560;border-radius:12px;padding:1.5rem;margin:1rem;box-shadow:0 0 60px rgba(102,126,234,0.15),inset 0 0 60px rgba(0,0,0,0.3);position:relative;}
+      .bomb-container.shake{animation:shake 0.5s ease-in-out;}
+      @keyframes shake{0%,100%{transform:translateX(0);}20%{transform:translateX(-10px);}40%{transform:translateX(10px);}60%{transform:translateX(-10px);}80%{transform:translateX(10px);}}
+      .countdown-overlay{position:absolute;inset:0;background:rgba(0,0,0,0.85);display:flex;align-items:center;justify-content:center;z-index:50;border-radius:12px;}
+      .countdown-number{font-family:'Orbitron',sans-serif;font-size:6rem;font-weight:900;color:#ff4444;text-shadow:0 0 40px rgba(255,68,68,0.6);animation:countPulse 1s ease-in-out infinite;}
+      @keyframes countPulse{0%,100%{transform:scale(1);opacity:1;}50%{transform:scale(1.2);opacity:0.8;}}
+      .bomb-header{display:flex;justify-content:space-between;align-items:center;background:#1a1a2e;padding:1.25rem 1.5rem;border-radius:8px;margin-bottom:1.5rem;border:1px solid #333;flex-wrap:wrap;gap:0.75rem;}
+      .timer-display{font-family:'Orbitron',sans-serif;font-size:2.5rem;font-weight:700;letter-spacing:2px;}
+      .serial-display{font-size:0.9rem;color:#888;}.serial-label{margin-right:0.5rem;}
+      .serial-value{font-family:'JetBrains Mono',monospace;font-size:1.1rem;color:#ffcc00;letter-spacing:2px;}
+      .strikes-display{display:flex;gap:0.5rem;font-size:1.5rem;}.strike-indicator{opacity:0.3;transition:all 0.3s;}.strike-indicator.active{opacity:1;animation:strikeFlash 0.5s ease;}
+      @keyframes strikeFlash{0%,100%{transform:scale(1);}50%{transform:scale(1.3);}}
+      .modules-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:1.25rem;margin-bottom:1.5rem;}
+      .module-wrapper{background:#1a1a2e;border:2px solid #333;border-radius:8px;position:relative;overflow:hidden;transition:all 0.3s;}.module-wrapper.success{border-color:#4caf50;background:rgba(76,175,80,0.1);}
+      .module-status-indicator{position:absolute;top:0.5rem;right:0.5rem;z-index:10;}
+      .status-icon{display:inline-flex;align-items:center;justify-content:center;width:32px;height:32px;background:#4caf50;color:#fff;border-radius:50%;font-size:1.2rem;font-weight:bold;}
+      .status-dot{display:inline-block;width:12px;height:12px;background:#ffcc00;border-radius:50%;animation:pulse 1.5s ease-in-out infinite;}
+      @keyframes pulse{0%,100%{opacity:1;transform:scale(1);}50%{opacity:0.5;transform:scale(0.8);}}
+      .module-complete{padding:3rem;text-align:center;color:#4caf50;font-family:'Orbitron',sans-serif;font-size:1rem;display:flex;flex-direction:column;align-items:center;gap:0.75rem;}.complete-icon{font-size:2.5rem;}
+      .module-content{padding:1.25rem;}.module-content h3{font-family:'Orbitron',sans-serif;color:#ffcc00;margin-bottom:0.6rem;font-size:0.9rem;}.module-hint{color:#666;font-size:0.75rem;margin-bottom:0.75rem;}
+      .wire-container{display:flex;flex-direction:column;gap:0.8rem;flex:1;justify-content:center;padding:0.5rem 0;}.wire{height:0.6rem;border-radius:2px;border:2px solid transparent;cursor:pointer;transition:all 0.3s;display:flex;align-items:center;justify-content:center;}.wire:hover:not(:disabled):not(.cut){transform:scaleY(1.3);filter:brightness(1.2);}.wire.cut{border-style:dashed;opacity:0.3;cursor:default;}.wire-cut-text{color:#555;font-size:0.5rem;}
+      .options-grid{display:grid;grid-template-columns:1fr 1fr;gap:0.5rem;}
+      .option-btn{padding:0.6rem;background:#1a1a2e;border:1px solid #333;color:#0ff;cursor:pointer;border-radius:4px;font-family:'Share Tech Mono',monospace;font-size:0.8rem;font-weight:bold;transition:all 0.2s;}.option-btn:hover:not(:disabled):not(.correct){border-color:#0ff;background:rgba(0,255,255,0.05);}.option-btn.correct{background:#4caf50;border-color:#4caf50;color:#fff;}.option-btn:disabled{cursor:default;}
+      .symbol-btn{padding:0.8rem;font-size:1.8rem;background:#1a1a2e;border:1px solid #333;border-radius:4px;cursor:pointer;transition:all 0.2s;}.symbol-btn:hover:not(:disabled):not(.correct){border-color:#0ff;}.symbol-btn.correct{background:#4caf50;border-color:#4caf50;}.symbol-btn:disabled{cursor:default;}
+      .keypad-display{background:#0a1520;padding:0.6rem;border-radius:4px;margin-bottom:0.5rem;color:#0f0;font-size:1rem;letter-spacing:0.2rem;text-align:center;}
+      .keypad-grid{display:grid;grid-template-columns:repeat(5,1fr);gap:0.3rem;}
+      .keypad-btn{padding:0.6rem;background:#1a2a3a;border:1px solid #0ff3;color:#0ff;border-radius:4px;cursor:pointer;font-family:'Share Tech Mono',monospace;font-size:1rem;transition:all 0.2s;}.keypad-btn.used{background:#0a1520;color:#333;cursor:default;}
+      .clear-btn{margin-top:0.3rem;padding:0.3rem 0.8rem;background:transparent;border:1px solid #f55;color:#f55;border-radius:4px;cursor:pointer;font-size:0.7rem;font-family:'Share Tech Mono',monospace;}
+      .switch-grid{display:grid;grid-template-columns:1fr 1fr;gap:0.5rem;}
+      .switch-btn{padding:0.75rem;border:3px solid transparent;border-radius:8px;cursor:pointer;display:flex;flex-direction:column;align-items:center;gap:0.25rem;transition:all 0.2s;}.switch-btn.solved{border-color:#4caf50;opacity:0.7;cursor:default;}.switch-btn:hover:not(.solved){transform:scale(1.05);}
+      .switch-arrow{font-size:1.5rem;}.switch-dir-label{font-size:0.6rem;text-transform:uppercase;}
+      .monster-display{background:#0a1520;border-radius:8px;padding:1rem;text-align:center;margin-bottom:0.75rem;border:2px solid;}.monster-eyes{font-size:1.8rem;margin-bottom:0.25rem;}.monster-body{font-size:2rem;}.monster-desc{font-size:0.65rem;color:#888;margin-top:0.25rem;}
+      .clock-btn{padding:0.3rem 0.8rem;background:#1a2a3a;border:1px solid #0ff3;color:#0ff;cursor:pointer;border-radius:4px;font-family:'Share Tech Mono',monospace;transition:all 0.2s;}.clock-btn:hover{background:rgba(0,255,255,0.1);}
+      .submit-btn{width:100%;padding:0.6rem;background:rgba(0,255,255,0.1);border:1px solid #0ff;color:#0ff;border-radius:4px;cursor:pointer;font-family:'Orbitron',sans-serif;font-weight:bold;font-size:0.85rem;transition:all 0.2s;}.submit-btn:hover:not(:disabled){background:rgba(0,255,255,0.2);}.submit-btn.correct{background:#4caf50;border-color:#4caf50;color:#fff;cursor:default;}
+      .manual-page-content{padding:2rem;max-width:600px;margin:0 auto;font-family:Georgia,'Times New Roman',serif;color:#222;background:#f5f0e6;min-height:100vh;line-height:1.6;}
+      .manual-title{text-align:center;border-bottom:3px double #333;padding-bottom:0.5rem;font-size:1.4rem;font-family:Georgia,serif;}
+      .manual-subtitle{text-align:center;font-style:italic;color:#666;font-size:0.75rem;margin-bottom:1.5rem;}
+      .manual-section{margin-bottom:0.5rem;border:1px solid #ddd;border-radius:6px;overflow:hidden;}
+      .manual-section h2{font-size:1rem;padding:0.75rem;margin:0;background:#e8e0d0;border-bottom:1px solid #ddd;user-select:none;}
+      .manual-section h2:hover{background:#ddd8c8;}
+      .manual-section>div{padding:0.75rem;}
+      .manual-section p{font-size:0.8rem;margin-bottom:0.3rem;}.manual-list{font-size:0.7rem;color:#555;line-height:1.8;}
+      .manual-table{width:100%;border-collapse:collapse;font-size:0.75rem;margin:0.5rem 0;}
+      .manual-table th,.manual-table td{border:1px solid #999;padding:0.3rem;text-align:center;}
+      .manual-table th{background:#ddd;font-weight:bold;}
+      .color-cell{color:#fff;font-weight:bold;}.color-cell.red{background:#e74c3c;}.color-cell.blue{background:#3498db;}.color-cell.yellow{background:#f1c40f;color:#333;}.color-cell.green{background:#2ecc71;}
+      .game-over-screen{display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:100vh;text-align:center;padding:2rem;position:relative;overflow:hidden;}
+      .game-over-screen h1{font-family:'Orbitron',sans-serif;font-size:2.5rem;margin-bottom:1rem;z-index:1;}
+      .game-over-screen.win h1{color:#4caf50;text-shadow:0 0 30px rgba(76,175,80,0.5);}.game-over-screen.lose h1{color:#ff4444;text-shadow:0 0 30px rgba(255,68,68,0.5);}
+      .result-time{color:#ffcc00;font-size:1.2rem;margin-bottom:0.5rem;z-index:1;}.result-reason{color:#ff8800;font-size:1.2rem;margin-bottom:0.5rem;z-index:1;}.result-message{color:#888;font-size:1rem;margin-bottom:2rem;z-index:1;}
+      .play-again-btn{padding:1rem 3rem;border:none;font-family:'Orbitron',sans-serif;font-size:1.1rem;font-weight:bold;cursor:pointer;letter-spacing:2px;transition:all 0.3s;z-index:1;border-radius:4px;}
+      .play-again-btn.win{background:#4caf50;color:#000;}.play-again-btn.win:hover{box-shadow:0 0 30px rgba(76,175,80,0.5);transform:scale(1.05);}
+      .play-again-btn.lose{background:#ff4444;color:#fff;}.play-again-btn.lose:hover{box-shadow:0 0 30px rgba(255,68,68,0.5);transform:scale(1.05);}
+      .confetti-bg{position:absolute;inset:0;background:radial-gradient(circle,rgba(76,175,80,0.15) 0%,transparent 70%);animation:bgPulse 2s ease-in-out infinite;}
+      .explosion-bg{position:absolute;inset:0;background:radial-gradient(circle,rgba(255,100,0,0.2) 0%,transparent 70%);animation:bgPulse 2s ease-in-out infinite;}
+      @keyframes bgPulse{0%,100%{transform:scale(1);opacity:0.5;}50%{transform:scale(1.3);opacity:0.3;}}
+      @media(max-width:768px){.game-title{font-size:2rem;}.bomb-icon{font-size:5rem;}.bomb-header{flex-direction:column;text-align:center;}.timer-display{font-size:2rem;}.modules-grid{grid-template-columns:1fr;}.manual-overlay{width:100%;}.menu-btn{padding:0.8rem 2rem;font-size:0.9rem;}.settings-panel{margin:1rem;padding:1.5rem;}}
+    `}</style>
+    {screen==="menu"&&(<div className="menu-screen"><div className="bomb-icon">💣</div><h1 className="game-title">ESL BOMB SQUAD</h1><p className="game-subtitle">Communication Under Pressure</p><div className="menu-buttons"><button className="menu-btn primary" onClick={()=>setScreen("settings")}>🎮 DEFUSER MODE</button><button className="menu-btn secondary" onClick={()=>setScreen("manual-only")}>📖 EXPERT MANUAL</button></div></div>)}
+    {screen==="settings"&&(<div><button className="back-btn" onClick={()=>setScreen("menu")}>← Back</button><SettingsPanel onStartGame={startGame}/></div>)}
+    {screen==="playing"&&config&&(<div className="game-layout"><button className="back-btn" onClick={reset}>← Quit</button><button className={`manual-toggle ${showManual?"active":""}`} onClick={()=>setShowManual(!showManual)}>{showManual?"✕ Close Manual":"📖 Manual"}</button><BombComponent key={gameKey} config={config} onGameEnd={endGame}/><div className={`manual-overlay ${showManual?"visible":""}`}><ExpertManual/></div></div>)}
+    {screen==="manual-only"&&(<div><button className="back-btn" onClick={()=>setScreen("menu")}>← Back</button><ExpertManual/></div>)}
+    {screen==="win"&&<WinScreen timeLeft={gameResult?.detail} onPlayAgain={reset}/>}
+    {screen==="lose"&&<LoseScreen reason={gameResult?.detail} onPlayAgain={reset}/>}
+  </div>);
+}
+
+ReactDOM.createRoot(document.getElementById('root')).render(React.createElement(App));
+</script>
+</body>
+</html>
