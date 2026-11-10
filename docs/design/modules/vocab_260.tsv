@@ -1,0 +1,261 @@
+id	word	aliases	zh	category
+1	grandfather	grandpa	祖父	Family
+2	grandmother	grandma	祖母	Family
+3	father	dad|daddy	父親	Family
+4	mother	mom|mommy	母親	Family
+5	brother		兄；弟	Family
+6	sister		姊；妹	Family
+7	boy		男孩	People & Occupation
+8	girl		女孩	People & Occupation
+9	baby		嬰兒	People & Occupation
+10	friend		朋友	People & Occupation
+11	teacher		老師	People & Occupation
+12	student		學生	People & Occupation
+13	singer		歌星	People & Occupation
+14	farmer		農夫	People & Occupation
+15	doctor		醫生	People & Occupation
+16	nurse		護士	People & Occupation
+17	school		學校	School
+18	book		書	School
+19	ruler		尺	School
+20	marker		彩色筆	School
+21	eraser		橡皮擦	School
+22	chair		椅子	School
+23	pencil		鉛筆	School
+24	desk		書桌	School
+25	pen		原子筆	School
+26	notebook		筆記本	School
+27	door		門	School
+28	computer		電腦	School
+29	table		桌子	School
+30	window		窗戶	School
+31	bookbag		書包	School
+32	key		鑰匙	School
+33	fan		扇子；電扇	School
+34	science		自然	Subjects
+35	math		數學	Subjects
+36	PE		體育	Subjects
+37	music		音樂	Subjects
+38	art		美勞	Subjects
+39	Chinese		中文	Subjects
+40	English		英語	Subjects
+41	swim		游泳	Sports
+42	run		跑	Sports
+43	jump		跳	Sports
+44	jog		慢跑	Sports
+45	yo-yo		溜溜球	Toys
+46	doll		洋娃娃	Toys
+47	kite		風箏	Toys
+48	ball		球	Toys
+49	color		顏色	Colors
+50	blue		藍色	Colors
+51	yellow		黃色	Colors
+52	green		綠色	Colors
+53	red		紅色	Colors
+54	black		黑色	Colors
+55	white		白色	Colors
+56	pink		粉紅色	Colors
+57	purple		紫色	Colors
+58	brown		咖啡色	Colors
+59	gray		灰色	Colors
+60	one		一	Numbers
+61	two		二	Numbers
+62	three		三	Numbers
+63	four		四	Numbers
+64	five		五	Numbers
+65	six		六	Numbers
+66	seven		七	Numbers
+67	eight		八	Numbers
+68	nine		九	Numbers
+69	ten		十	Numbers
+70	eleven		十一	Numbers
+71	twelve		十二	Numbers
+72	apple		蘋果	Fruits
+73	banana		香蕉	Fruits
+74	orange		柳橙	Fruits
+75	milk		牛奶	Drinks
+76	juice		果汁	Drinks
+77	water		水	Drinks
+78	tea		茶	Drinks
+79	coffee		咖啡	Drinks
+80	cake		蛋糕	Food
+81	sandwich		三明治	Food
+82	hot dog		熱狗	Food
+83	pizza		披薩	Food
+84	hamburger		漢堡	Food
+85	pork		豬肉	Food
+86	rice		米	Food
+87	bread		麵包	Food
+88	chicken		雞肉	Food
+89	ice cream		冰淇淋	Food
+90	beef		牛肉	Food
+91	egg		蛋	Food
+92	breakfast		早餐	Food
+93	lunch		午餐	Food
+94	dinner		晚餐	Food
+95	happy		快樂的	Feelings
+96	angry		生氣的	Feelings
+97	sad		難過的	Feelings
+98	fine		美好的	Feelings
+99	good		好的	Feelings
+100	great		很棒的	Feelings
+101	turtle		烏龜	Animals
+102	dog		狗	Animals
+103	cat		貓	Animals
+104	monkey		猴子	Animals
+105	rabbit		兔子	Animals
+106	frog		青蛙	Animals
+107	bird		鳥	Animals
+108	fish		魚	Animals
+109	lion		獅子	Animals
+110	bear		熊	Animals
+111	tiger		老虎	Animals
+112	pig		豬	Animals
+113	cow		乳牛	Animals
+114	horse		馬	Animals
+115	tall		高的	Appearances
+116	short		矮的；短的	Appearances
+117	big		大的	Appearances
+118	small		小的	Appearances
+119	old		老的；舊的	Appearances
+120	new		新的	Appearances
+121	thin		瘦的	Appearances
+122	fat		胖的	Appearances
+123	dance		跳舞	Ability & Talent
+124	sing		唱歌	Ability & Talent
+125	read		閱讀	Ability & Talent
+126	write		寫	Ability & Talent
+127	draw		畫	Ability & Talent
+128	hot		熱的	Weather
+129	cold		冷的	Weather
+130	rainy	raining	下雨的	Weather
+131	sunny		晴朗的	Weather
+132	cloudy		多雲的	Weather
+133	cool		涼快的	Weather
+134	warm		溫暖的	Weather
+135	windy		多風的	Weather
+136	card		卡片	Holidays
+137	gift		禮物	Holidays
+138	flower		花	Holidays
+139	home		家	House & Places
+140	kitchen		廚房	House & Places
+141	bathroom		浴室	House & Places
+142	bedroom		臥室	House & Places
+143	living room		客廳	House & Places
+144	bank		銀行	House & Places
+145	library		圖書館	House & Places
+146	zoo		動物園	House & Places
+147	farm		農場	House & Places
+148	bookstore		書局	House & Places
+149	park		公園	House & Places
+150	car		汽車	Transportation
+151	bike		腳踏車	Transportation
+152	bus		公車	Transportation
+153	train		火車	Transportation
+154	taxi		計程車	Transportation
+155	on foot		走路	Transportation
+156	MRT		捷運	Transportation
+157	plane		飛機	Transportation
+158	ship		輪船	Transportation
+159	boat		小舟	Transportation
+160	time		時間	Time, Days & Seasons
+161	day		日；天	Time, Days & Seasons
+162	night		晚上	Time, Days & Seasons
+163	week		星期	Time, Days & Seasons
+164	today		今天	Time, Days & Seasons
+165	Sunday		星期日	Time, Days & Seasons
+166	Monday		星期一	Time, Days & Seasons
+167	Tuesday		星期二	Time, Days & Seasons
+168	Wednesday		星期三	Time, Days & Seasons
+169	Thursday		星期四	Time, Days & Seasons
+170	Friday		星期五	Time, Days & Seasons
+171	Saturday		星期六	Time, Days & Seasons
+172	spring		春天	Time, Days & Seasons
+173	summer		夏天	Time, Days & Seasons
+174	fall	autumn	秋天	Time, Days & Seasons
+175	winter		冬天	Time, Days & Seasons
+176	lake		湖	Nature & Geography
+177	sea		海	Nature & Geography
+178	sun		太陽	Nature & Geography
+179	moon		月亮	Nature & Geography
+180	star		星星	Nature & Geography
+181	sick		生病的	Health & Body Parts
+182	fever		發燒	Health & Body Parts
+183	ear		耳朵	Health & Body Parts
+184	eye		眼睛	Health & Body Parts
+185	mouth		嘴巴	Health & Body Parts
+186	nose		鼻子	Health & Body Parts
+187	leg		腿	Health & Body Parts
+188	head		頭	Health & Body Parts
+189	hair		頭髮	Health & Body Parts
+190	hand		手	Health & Body Parts
+191	face		臉	Health & Body Parts
+192	jacket		外套	Clothing
+193	coat		大衣	Clothing
+194	shirt		襯衫	Clothing
+195	T-shirt		T恤	Clothing
+196	jeans		牛仔褲	Clothing
+197	dress		洋裝	Clothing
+198	shorts		短褲	Clothing
+199	skirt		裙子	Clothing
+200	pants		長褲	Clothing
+201	shoes		鞋子	Clothing
+202	socks		襪子	Clothing
+203	get up		起床	Daily Routines
+204	do one's homework	do homework|do my homework	做功課	Daily Routines
+205	go to school		去上學	Daily Routines
+206	go to bed		去睡覺	Daily Routines
+207	go home		回家	Daily Routines
+208	I am		我是	Pronouns
+209	you are		你/你們是	Pronouns
+210	he is		他是	Pronouns
+211	she is		她是	Pronouns
+212	it is		它是	Pronouns
+213	we are		我們是	Pronouns
+214	they are		他們是	Pronouns
+215	can		能；會	Auxiliaries
+216	do/does/did	do|does|did	做	Auxiliaries
+217	may		可能	Auxiliaries
+218	this/these	this|these	這個/這些	Articles
+219	a/an	a|an	一個	Articles
+220	that/those	that|those	那個/那些	Articles
+221	who		誰	Wh-words
+222	what		什麼	Wh-words
+223	how		如何	Wh-words
+224	where		哪裡	Wh-words
+225	how many		多少（可數）	Wh-words
+226	how much		多少（不可數）	Wh-words
+227	when		何時	Wh-words
+228	box		盒子	Other Nouns
+229	bag		袋子	Other Nouns
+230	name		名字	Other Nouns
+231	dollar		元	Other Nouns
+232	cup		杯子	Other Nouns
+233	Taiwan		台灣	Other Nouns
+234	in		在…之內	Prepositions
+235	on		在…之上	Prepositions
+236	at		在…	Prepositions
+237	by		在…旁邊	Prepositions
+238	from		從	Prepositions
+239	under		在…之下	Prepositions
+240	next to		在…旁邊	Prepositions
+241	for		為了；給	Prepositions
+242	to		向；往；到	Prepositions
+243	eat		吃	Other Verbs
+244	go		去	Other Verbs
+245	sleep		睡	Other Verbs
+246	like		喜歡	Other Verbs
+247	want		想要	Other Verbs
+248	study		讀書	Other Verbs
+249	walk		走路	Other Verbs
+250	wear		穿	Other Verbs
+251	cook		煮飯	Other Verbs
+252	play		玩耍	Other Verbs
+253	have/has	have|has	有	Other Verbs
+254	fly		飛	Other Verbs
+255	thank		感謝	Other Verbs
+256	yes		是	Others
+257	no		不	Others
+258	not		不是	Others
+259	there		那裡	Others
+260	other		其他	Others

@@ -1,0 +1,23 @@
+<!DOCTYPE html><html><head><meta charset="UTF-8">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.23.9/babel.min.js"></script>
+<script>
+// Load every module script listed in index.html, in order.
+const x=new XMLHttpRequest();x.open("GET","index.html",false);x.send();
+for(const m of x.responseText.matchAll(/<script src="((?:pixel|sprites\/)[^"]*)"/g)) document.write(`<script src="${m[1]}"><\/script>`);
+for(const m of x.responseText.matchAll(/<script type="text\/babel" src="(modules\/[^"]+)"/g)) document.write(`<script type="text/babel" src="${m[1]}"><\/script>`);
+</script>
+<style>body{background:#1a1a2e;color:#eee;font-family:monospace;margin:0;display:flex;gap:12px;padding:10px}
+.col{width:380px;background:#12121f;border:1px solid #333}.option-btn{padding:.6rem;background:#1a1a2e;border:1px solid #333;color:#0ff;font-weight:bold}.module-content{padding:1rem}.module-content h3{color:#fc0}
+.pixel-art{image-rendering:pixelated}</style>
+</head><body><div class="col" id="d"></div><div class="col" id="m" style="padding:8px"></div><pre id="t" style="white-space:pre-wrap;width:420px"></pre>
+<script type="text/babel">
+const id=new URLSearchParams(location.search).get("m");
+const M=window.EXTRA_MODULES.find(m=>m.id===id); const out=document.getElementById("t");
+const log=(s)=>{out.textContent+=s+"\n";};
+window.HLOG=log; window.STRIKES=0; window.WON=false;
+ReactDOM.createRoot(document.getElementById("d")).render(<M.Component serialNumber={new URLSearchParams(location.search).get("sn")||"AB123-C4D56"} onSuccess={()=>{window.WON=true;log("SUCCESS")}} onStrike={()=>{window.STRIKES++;log("STRIKE")}}/>);
+ReactDOM.createRoot(document.getElementById("m")).render(<M.Manual/>);
+const s=document.createElement("script"); s.src=new URLSearchParams(location.search).get("shot")?`_tests/${new URLSearchParams(location.search).get("shot")==="1"?"_shot":"_shot_"+new URLSearchParams(location.search).get("shot")}.js`:`_tests/${id}.js?${Date.now()}`; document.body.appendChild(s);
+</script></body></html>

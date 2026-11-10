@@ -6,7 +6,7 @@
 
 ## 🔥 Immediate / In Progress
 
-- [ ] Sound effects (need audio files or Web Audio synthesis)
+- [x] Sound effects: Web Audio synthesis in `web/index.html` (`window.SFX`), with a mute button (2026-11-10)
 - [ ] Guess Who: Get AI-generated face images for agents
 
 ---
@@ -19,6 +19,21 @@
 - [ ] Test all modules on mobile devices
 
 ---
+
+## 🧊 Back Burner (gameplay ideas, 2026-11-10)
+
+- [ ] **Earlier modules feed later ones.** A finale module asks about things from modules already
+  solved (and gone from the screen), so teams keep a paper log. Parked: the design is complex.
+- [ ] **Paper-and-pencil Expert work, via information arriving in pieces** (the preferred method).
+  The Defuser reports things one at a time and the answer needs all of them, so most Experts take
+  notes. Never an honor-system rule. Keep manual reading light: reading is already hard for ESL students.
+- [x] Results screen: stars, per-module breakdown, best score, "swap roles" button (2026-11-10)
+- [x] Locked finale module, so a mission builds to an end (2026-11-10)
+- [x] Campaign of 12 named missions, `MISSIONS` in `web/index.html`; groupings are a first draft to review (2026-11-10)
+- [ ] Class leaderboard across devices: needs a server, the devices are not linked today
+- [ ] Mission locks (unlock in order): left open for now, since progress is saved per device and partners swap devices
+- [x] Manual can show only one mission's modules (2026-11-10)
+- [ ] Audit the 16 original modules against the English-lock and information-gap rules
 
 ## 🎯 Medium Term
 

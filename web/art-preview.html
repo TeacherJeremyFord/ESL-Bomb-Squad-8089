@@ -1,0 +1,16 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="UTF-8"><title>Art Preview</title>
+<style>body{background:#1a2333;color:#ddd;font:12px monospace;margin:16px}
+h4{margin:14px 0 6px;color:#f1c40f}.row{display:flex;flex-wrap:wrap;gap:8px}
+figure{margin:0;background:#0a1520;padding:6px;text-align:center}
+img{image-rendering:pixelated;width:216px}</style></head>
+<body><h3>Monster Lab parts kit</h3><div id="s"></div>
+<script src="pixel.js"></script><script src="sprites/monster.js"></script>
+<script>
+const s=document.getElementById("s"), P=PX.monster.PARTS;
+const row=(title,recipes)=>{s.insertAdjacentHTML("beforeend",`<h4>${title}</h4><div class="row">${recipes.map(([cap,r])=>`<figure><img src="${PX.monster(r)}"><figcaption>${cap}</figcaption></figure>`).join("")}</div>`);};
+for(const slot of ["head","body","legs","arms","eyeStyle","mouth","nose","horns","color"]) row(slot,P[slot].map(v=>[v,{[slot]:v}]));
+row("eyes (count)",[1,2,3,4].map(n=>[n+"",{eyes:n}]));
+let seed=7;const rnd=a=>a[(seed=(seed*9301+49297)%233280)%a.length];
+row("random monsters",Array.from({length:8},()=>{const r={eyes:rnd([1,2,3,4])};for(const k in P)r[k]=rnd(P[k]);return[`${r.eyes} · ${r.arms} · ${r.color}`,r];}));
+</script></body></html>

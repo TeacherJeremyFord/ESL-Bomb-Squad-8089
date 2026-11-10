@@ -7,11 +7,42 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.23.9/babel.min.js"></script>
+<script src="pixel.js"></script>
+<script src="sprites/monster.js"></script>
+<script src="sprites/people.js"></script>
+<script src="sprites/food.js"></script>
+<script src="sprites/animals.js"></script>
+<script src="sprites/weather.js"></script>
+<script src="sprites/school.js"></script>
+<script src="sprites/places.js"></script>
+<script src="sprites/desk.js"></script>
+<script src="sprites/house.js"></script>
+<script src="sprites/toys.js"></script>
+<script src="sprites/feelings.js"></script>
+<script src="sprites/clinic.js"></script>
+<script src="sprites/race.js"></script>
+<script src="sprites/wires.js"></script>
+<script src="sprites/symbols.js"></script>
+<!-- New modules register themselves in window.EXTRA_MODULES (see web/modules/). -->
+<script type="text/babel" src="modules/m01-family-photo.jsx"></script>
+<script type="text/babel" src="modules/m02-lunch-rush.jsx"></script>
+<script type="text/babel" src="modules/m03-weather-wardrobe.jsx"></script>
+<script type="text/babel" src="modules/m04-school-bell.jsx"></script>
+<script type="text/babel" src="modules/m05-ticket-machine.jsx"></script>
+<script type="text/babel" src="modules/m06-messy-desk.jsx"></script>
+<script type="text/babel" src="modules/m07-midnight-snack.jsx"></script>
+<script type="text/babel" src="modules/m08-mystery-guest.jsx"></script>
+<script type="text/babel" src="modules/m09-mood-plugs.jsx"></script>
+<script type="text/babel" src="modules/m10-gift-shop.jsx"></script>
+<script type="text/babel" src="modules/m11-monster-clinic.jsx"></script>
+<script type="text/babel" src="modules/m12-animal-race-day.jsx"></script>
 </head>
 <body>
 <div id="root"></div>
 <script type="text/babel">
 const { useState, useEffect, useCallback, useRef, useMemo } = React;
+/* Solo test mode: open index.html?test. Adds the Manual button and SOLVE/STRIKE buttons on the bomb screen. Students never see it. */
+const TEST_MODE = new URLSearchParams(location.search).has("test");
 
 /* ===== UTILITIES ===== */
 const generateSerialNumber = () => {
@@ -44,17 +75,18 @@ const MODULES_LIST = [
   { id:"colorSwitchboard", name:"🎛️ Switchboard", type:"colorSwitchboard", difficulty:"B1" },
   { id:"worldClock", name:"🌍 World Clock", type:"worldClock", difficulty:"B1" },
   { id:"combinationLock", name:"🔒 Combo Lock", type:"combinationLock", difficulty:"B1" },
-];
+].concat((window.EXTRA_MODULES||[]).map(({id,name,type,difficulty})=>({id,name,type,difficulty})));
 
 /* ===================== MODULES ===================== */
 
 /* COLOR WIRES */
 const ColorWiresModule = ({ serialNumber, onSuccess, onStrike }) => {
   const wireColors = ["red","blue","yellow","green","white","black"];
-  const colorHex = {red:"#e74c3c",blue:"#3498db",yellow:"#f1c40f",green:"#2ecc71",white:"#ecf0f1",black:"#2c3e50"};
   const [wires] = useState(() => {
     const count = Math.floor(Math.random()*3)+3;
-    return Array.from({length:count},(_,i)=>({id:i,color:wireColors[Math.floor(Math.random()*wireColors.length)],cut:false}));
+    const pick=(a)=>a[Math.floor(Math.random()*a.length)];
+    // color decides the answer; bends, terminals, shade and how/where it gets cut are decoration, so no two wires look alike.
+    return Array.from({length:count},(_,i)=>({id:i,color:pick(wireColors),cut:false,shape:pick(PX.wire.SHAPES),ends:pick(PX.wire.ENDS),tone:Math.random()*2-1,cutAt:0.25+Math.random()*0.5,gap:5+Math.floor(Math.random()*6),cutStyle:pick(PX.wire.CUTS)}));
   });
   const [wireState,setWireState] = useState(wires);
   const [solved,setSolved] = useState(false);
@@ -70,60 +102,70 @@ const ColorWiresModule = ({ serialNumber, onSuccess, onStrike }) => {
     if(idx===getCorrectWire()){setSolved(true);onSuccess();}else onStrike();
   };
   return (<div className="module-content" style={{display:"flex",flexDirection:"column",minHeight:"180px"}}><h3>🔌 COLOR WIRES</h3><p className="module-hint">Cut the correct wire!</p>
-    <div className="wire-container">{wireState.map((w,i)=>(<button key={w.id} onClick={()=>cutWire(i)} disabled={solved||w.cut} className={`wire ${w.cut?"cut":""}`} style={{background:w.cut?"transparent":colorHex[w.color],borderColor:w.cut?"#555":"transparent"}}>{w.cut&&<span className="wire-cut-text">✂️</span>}</button>))}</div></div>);
+    <div className="wire-container">{wireState.map((w,i)=>(<button key={w.id} onClick={()=>cutWire(i)} disabled={solved||w.cut} className={`wire ${w.cut?"cut":""}`}><img className="pixel-art" alt={`${w.cut?"cut ":""}${w.color} wire`} src={PX.wire(w)} width={PX.wire.size.w*4} height={PX.wire.size.h*4}/></button>))}</div></div>);
 };
 
 /* USER NAME */
 const UserNameModule = ({ serialNumber, onSuccess, onStrike }) => {
   const names={A:"ALICE",B:"BOB",C:"CHARLIE",D:"DAVID",E:"EVE",F:"FRANK",G:"GRACE",H:"HENRY",I:"IRIS",J:"JACK",K:"KATE",L:"LEO",M:"MARY",N:"NOAH",O:"OLIVE",P:"PETER",Q:"QUINN",R:"ROSE",S:"SAM",T:"TOM",U:"UMA",V:"VERA",W:"WILL",X:"XENA",Y:"YUKI",Z:"ZARA"};
   const correct = names[getLastLetter(serialNumber)]||"ALICE";
-  const [options] = useState(()=>{const s=new Set([correct]);const a=Object.values(names);while(s.size<4)s.add(a[Math.floor(Math.random()*a.length)]);return[...s].sort(()=>Math.random()-0.5);});
+  // Typed, not chosen: the Expert has to spell the name out loud (design doc §2).
+  const [text,setText] = useState("");
   const [solved,setSolved] = useState(false);
-  return (<div className="module-content"><h3>👤 USER NAME</h3><p className="module-hint">Select the correct user name</p>
-    <div className="options-grid">{options.map(n=>(<button key={n} onClick={()=>{if(solved)return;if(n===correct){setSolved(true);onSuccess();}else onStrike();}} disabled={solved} className={`option-btn ${solved&&n===correct?"correct":""}`}>{n}</button>))}</div></div>);
+  const [wrong,setWrong] = useState(false);
+  const submit = (e) => { e&&e.preventDefault(); if(solved||!text)return; if(text===correct){setSolved(true);onSuccess();} else {onStrike();setWrong(true);setTimeout(()=>setWrong(false),600);} };
+  return (<div className="module-content"><h3>👤 USER NAME</h3><p className="module-hint">ENTER USER NAME</p>
+    <form onSubmit={submit} style={{display:"flex",gap:"0.5rem"}}>
+      <input value={text} onChange={e=>setText(e.target.value.toUpperCase().replace(/[^A-Z]/g,""))} disabled={solved} maxLength={12} autoCapitalize="characters" autoComplete="off" autoCorrect="off" spellCheck={false} placeholder="NAME"
+        style={{flex:1,minWidth:0,padding:"0.6rem",fontSize:"1.3rem",fontFamily:"'Orbitron',sans-serif",letterSpacing:"3px",background:"#0a1520",color:solved?"#4caf50":"#0ff",border:`2px solid ${wrong?"#ff3b3b":solved?"#4caf50":"#333"}`,borderRadius:"4px"}}/>
+      <button type="submit" disabled={solved||!text} className={`option-btn ${solved?"correct":""}`} style={{minWidth:"90px"}}>{solved?"✓":"SUBMIT"}</button>
+    </form></div>);
 };
+
 
 /* MONSTER LAB */
 const MonsterLabModule = ({ serialNumber, onSuccess, onStrike }) => {
   const monsterNames=["ZORG","BLIP","FLOP","MEEP"];
   const eyeCounts=[1,2,3,4]; const armTypes=["tentacles","robot","furry"]; const skinColors=["purple","green","orange"];
-  const colorHex={purple:"#9c27b0",green:"#4caf50",orange:"#ff9800"}; const armEmoji={tentacles:"🐙",robot:"🤖",furry:"🐻"};
-  const [monster] = useState(()=>({eyes:eyeCounts[Math.floor(Math.random()*4)],arms:armTypes[Math.floor(Math.random()*3)],color:skinColors[Math.floor(Math.random()*3)]}));
+  
+  const pick=(a)=>a[Math.floor(Math.random()*a.length)];
+  // eyes / arms / color decide the answer; every other part is random decoration from the parts kit.
+  const [monster] = useState(()=>{const P=PX.monster.PARTS;return{eyes:pick(eyeCounts),arms:pick(armTypes),color:pick(skinColors),head:pick(P.head),body:pick(P.body),legs:pick(P.legs),eyeStyle:pick(P.eyeStyle),mouth:pick(P.mouth),nose:pick(P.nose),horns:pick(P.horns)};});
   const ld = getLastDigit(serialNumber);
-  const correct = ld<=2?monsterNames[eyeCounts.indexOf(monster.eyes)]||"ZORG":ld<=5?monsterNames[skinColors.indexOf(monster.color)]||"MEEP":ld<=7?monsterNames[armTypes.indexOf(monster.arms)]||"ZORG":monsterNames[monster.eyes%4];
+  const byEyes={1:"MEEP",2:"BLIP",3:"ZORG",4:"FLOP"}, byColor={purple:"ZORG",green:"BLIP",orange:"FLOP"}, byArms={tentacles:"BLIP",robot:"MEEP",furry:"FLOP"};
+  const correct = ld<=2?byEyes[monster.eyes]:ld<=5?byColor[monster.color]:ld<=7?byArms[monster.arms]:monsterNames[monster.eyes%4];
   const [solved,setSolved] = useState(false);
   return (<div className="module-content"><h3>👾 MONSTER LAB</h3>
-    <div className="monster-display" style={{borderColor:colorHex[monster.color]}}><div className="monster-eyes">{"👁️".repeat(monster.eyes)}</div><div className="monster-body">{armEmoji[monster.arms]}</div><div className="monster-desc">{monster.eyes} eye{monster.eyes>1?"s":""} · {monster.arms} · {monster.color}</div></div>
+    <div className="monster-display"><img className="pixel-art" alt="monster" src={PX.monster(monster)} width={PX.monster.size.w*4} height={PX.monster.size.h*4}/></div>
     <div className="options-grid">{monsterNames.map(n=>(<button key={n} onClick={()=>{if(solved)return;if(n===correct){setSolved(true);onSuccess();}else onStrike();}} disabled={solved} className={`option-btn ${solved&&n===correct?"correct":""}`}>{n}</button>))}</div></div>);
 };
 
 /* GUESS WHO */
+// gender + eyes + hair decide the name (2 × 3 × 5 = 30 names, one table per gender). The manual reads the same table.
+const GUESS_EYES=["Brown","Blue","Green"]; const GUESS_HAIR=["Black","Brown","Blonde","Red","Gray"];
+const GUESS_NAMES={
+  boy:[["TOM","BEN","SAM","MAX","LEO"],["JACK","DAN","KEN","ROY","NED"],["TED","BOB","JIM","RAY","ZAC"]],
+  girl:[["AMY","ANN","EVA","MAY","SUE"],["LILY","ROSE","KIM","JOY","MIA"],["ZOE","IVY","LIZ","PAM","DOT"]],
+};
 const GuessWhoModule = ({ serialNumber, onSuccess, onStrike }) => {
-  const eyeColors=["Brown","Blue","Green"]; const hairColors=["Black","Brown","Blonde","Red","Gray"];
-  const agents=["🐀 RAT","🐂 OX","🐅 TIGER","🐇 RABBIT","🐉 DRAGON","🐍 SNAKE","🐴 HORSE","🐐 GOAT","🐒 MONKEY","🐓 ROOSTER","🐕 DOG","🐖 PIG","🐼 PANDA","🦛 HIPPO","🦒 GIRAFFE"];
-  const eyeHex={Brown:"#8B4513",Blue:"#4488ff",Green:"#2ecc71"}; const hairHex={Black:"#222",Brown:"#8B6914",Blonde:"#f1c40f",Red:"#e74c3c",Gray:"#999"};
-  const [suspect] = useState(()=>({eye:eyeColors[Math.floor(Math.random()*3)],hair:hairColors[Math.floor(Math.random()*5)]}));
-  const getCorrect = () => { const ei=eyeColors.indexOf(suspect.eye); const hi=hairColors.indexOf(suspect.hair); return agents[(ei*5+hi)%agents.length]; };
-  const correct = getCorrect();
-  const [options] = useState(()=>{const s=new Set([correct]);while(s.size<4)s.add(agents[Math.floor(Math.random()*agents.length)]);return[...s].sort(()=>Math.random()-0.5);});
+  const pick=(a)=>a[Math.floor(Math.random()*a.length)];
+  // hairstyle and shirt are decoration.
+  const [suspect] = useState(()=>{const gender=pick(["boy","girl"]);return{gender,eye:pick(GUESS_EYES),hair:pick(GUESS_HAIR),style:pick(gender==="girl"?["long","bun"]:["short","spiky"]),shirt:Math.floor(Math.random()*4)};});
+  const ei=GUESS_EYES.indexOf(suspect.eye), hi=GUESS_HAIR.indexOf(suspect.hair);
+  const correct = GUESS_NAMES[suspect.gender][ei][hi];
+  // Always offer the other-gender twin (same eyes and hair), so "boy or girl?" matters.
+  const twin = GUESS_NAMES[suspect.gender==="boy"?"girl":"boy"][ei][hi];
+  const [options] = useState(()=>{const all=[...GUESS_NAMES.boy.flat(),...GUESS_NAMES.girl.flat()];const s=new Set([correct,twin]);while(s.size<4)s.add(pick(all));return[...s].sort(()=>Math.random()-0.5);});
   const [solved,setSolved] = useState(false);
   return (<div className="module-content"><h3>🕵️ GUESS WHO</h3>
-    <div style={{background:"#0a1520",borderRadius:"8px",padding:"1rem",textAlign:"center",marginBottom:"0.75rem",border:"1px solid #333"}}>
-      <div style={{width:"60px",height:"20px",background:hairHex[suspect.hair],borderRadius:"10px 10px 0 0",margin:"0 auto"}}></div>
-      <div style={{fontSize:"2rem"}}>😐</div>
-      <div style={{display:"flex",justifyContent:"center",gap:"0.5rem",marginTop:"0.25rem"}}>
-        <span style={{display:"inline-block",width:"12px",height:"12px",borderRadius:"50%",background:eyeHex[suspect.eye]}}></span>
-        <span style={{color:"#888",fontSize:"0.7rem"}}>{suspect.eye} eyes</span>
-        <span style={{display:"inline-block",width:"12px",height:"12px",borderRadius:"4px",background:hairHex[suspect.hair]}}></span>
-        <span style={{color:"#888",fontSize:"0.7rem"}}>{suspect.hair} hair</span>
-      </div>
-    </div>
-    <div className="options-grid">{options.map(n=>(<button key={n} onClick={()=>{if(solved)return;if(n===correct){setSolved(true);onSuccess();}else onStrike();}} disabled={solved} className={`option-btn ${solved&&n===correct?"correct":""}`} style={{fontSize:"0.75rem"}}>{n}</button>))}</div></div>);
+    <div className="monster-display"><img className="pixel-art" alt="suspect" src={PX.face({gender:suspect.gender,hair:suspect.hair.toLowerCase(),eye:suspect.eye.toLowerCase(),style:suspect.style,shirt:suspect.shirt})} width={PX.face.size.w*4} height={PX.face.size.h*4} style={{maxWidth:"160px"}}/></div>
+    <div className="options-grid">{options.map(n=>(<button key={n} onClick={()=>{if(solved)return;if(n===correct){setSolved(true);onSuccess();}else onStrike();}} disabled={solved} className={`option-btn ${solved&&n===correct?"correct":""}`} style={{fontSize:"1rem",minHeight:"48px",fontFamily:"'Orbitron',sans-serif",letterSpacing:"2px"}}>{n}</button>))}</div></div>);
 };
+
 
 /* VENDING MACHINE */
 const VendingMachineModule = ({ serialNumber, onSuccess, onStrike }) => {
-  const allItems=[{name:"Apple",emoji:"🍎",cat:"fruit",price:150},{name:"Banana",emoji:"🍌",cat:"fruit",price:100},{name:"Cookie",emoji:"🍪",cat:"snack",price:175},{name:"Chips",emoji:"🥔",cat:"snack",price:200},{name:"Soda",emoji:"🥤",cat:"drink",price:125},{name:"Water",emoji:"💧",cat:"drink",price:75},{name:"Carrot",emoji:"🥕",cat:"vegetable",price:150},{name:"Candy",emoji:"🍬",cat:"snack",price:50}];
+  const allItems=[{name:"Apple",cat:"fruit",price:150},{name:"Banana",cat:"fruit",price:100},{name:"Cookie",cat:"snack",price:175},{name:"Chips",cat:"snack",price:200},{name:"Soda",cat:"drink",price:125},{name:"Water",cat:"drink",price:75},{name:"Carrot",cat:"vegetable",price:150},{name:"Candy",cat:"snack",price:50}];
   const [items] = useState(()=>{const s=[...allItems].sort(()=>Math.random()-0.5);return s.slice(0,4);});
   const ld = getLastDigit(serialNumber);
   const getCorrect = () => {
@@ -138,12 +180,14 @@ const VendingMachineModule = ({ serialNumber, onSuccess, onStrike }) => {
   const fmt = (p)=>`$${(p/100).toFixed(2)}`;
   return (<div className="module-content"><h3>🏭 VENDING MACHINE</h3><p className="module-hint">Buy the correct item!</p>
     <div className="options-grid">{items.map((item,i)=>(<button key={i} onClick={()=>{if(solved)return;if(item.name===correct.name){setSolved(true);onSuccess();}else onStrike();}} disabled={solved} className={`option-btn ${solved&&item.name===correct.name?"correct":""}`} style={{display:"flex",flexDirection:"column",alignItems:"center",padding:"0.6rem"}}>
-      <span style={{fontSize:"1.5rem"}}>{item.emoji}</span><span style={{fontSize:"0.7rem"}}>{item.name}</span><span style={{fontSize:"0.65rem",color:"#f1c40f"}}>{fmt(item.price)}</span></button>))}</div></div>);
+      <img className="pixel-art" alt="" src={PX.food(item.name.toLowerCase())} width={48} height={48}/><span style={{fontSize:"0.7rem"}}>{item.name}</span><span style={{fontSize:"0.65rem",color:"#f1c40f"}}>{fmt(item.price)}</span></button>))}</div></div>);
 };
 
 /* SYMBOL KEYPAD */
+// Columns of PX.glyph names; the manual draws the same table.
+const SYMBOL_COLUMNS=[["copyright","star","empty-star","diamonds"],["phone","star","flower","diamonds"],["copyright","phone","flower","empty-star"],["star","copyright","phone","flower"]];
 const SymbolKeypadModule = ({ serialNumber, onSuccess, onStrike }) => {
-  const columns=[["©","★","☆","❖"],["☎","★","✿","❖"],["©","☎","✿","☆"],["★","©","☎","✿"]];
+  const columns=SYMBOL_COLUMNS;
   const [displayed] = useState(()=>{const col=columns[Math.floor(Math.random()*columns.length)];const shuffled=[...col].sort(()=>Math.random()-0.5);return{symbols:shuffled,correctOrder:col};});
   const [pressed,setPressed] = useState([]);
   const [solved,setSolved] = useState(false);
@@ -154,8 +198,8 @@ const SymbolKeypadModule = ({ serialNumber, onSuccess, onStrike }) => {
     else{onStrike();setPressed([]);}
   };
   return (<div className="module-content"><h3>🔣 SYMBOL KEYPAD</h3><p className="module-hint">Press symbols in the correct order</p>
-    <div style={{display:"flex",justifyContent:"center",gap:"0.5rem",marginBottom:"0.75rem"}}>{[0,1,2,3].map(i=>(<span key={i} style={{width:"28px",height:"28px",display:"flex",alignItems:"center",justifyContent:"center",background:"#1a1a2e",border:`2px solid ${pressed[i]?"#4caf50":"#333"}`,borderRadius:"6px",color:pressed[i]?"#4caf50":"#555",fontSize:"0.9rem"}}>{pressed[i]||"?"}</span>))}</div>
-    <div className="options-grid">{displayed.symbols.map(s=>(<button key={s} onClick={()=>handlePress(s)} disabled={solved||pressed.includes(s)} className={`symbol-btn ${pressed.includes(s)?"correct":""}`} style={{fontSize:"1.5rem"}}>{s}</button>))}</div></div>);
+    <div style={{display:"flex",justifyContent:"center",gap:"0.5rem",marginBottom:"0.75rem"}}>{[0,1,2,3].map(i=>(<span key={i} style={{width:"28px",height:"28px",display:"flex",alignItems:"center",justifyContent:"center",background:"#1a1a2e",border:`2px solid ${pressed[i]?"#4caf50":"#333"}`,borderRadius:"6px",color:pressed[i]?"#4caf50":"#555",fontSize:"0.9rem"}}>{pressed[i]?<img className="pixel-art" alt={pressed[i]} src={PX.glyph(pressed[i])} width={20} height={20}/>:"?"}</span>))}</div>
+    <div className="options-grid">{displayed.symbols.map(s=>(<button key={s} onClick={()=>handlePress(s)} disabled={solved||pressed.includes(s)} className={`symbol-btn ${pressed.includes(s)?"correct":""}`}><img className="pixel-art" alt={s} src={PX.glyph(s)} width={48} height={48}/></button>))}</div></div>);
 };
 
 /* NUMBER KEYPAD */
@@ -304,14 +348,14 @@ const MemoryModule = ({ serialNumber, onSuccess, onStrike }) => {
 
 /* SYMBOL PANEL */
 const SymbolPanelModule = ({ serialNumber, onSuccess, onStrike }) => {
-  const symbolSets=[{symbols:["🍎","🌳","🐟","🔥"],plant:"🌳",animal:"🐟",food:"🍎"},{symbols:["🐱","🌸","🍕","⭐"],plant:"🌸",animal:"🐱",food:"🍕"},{symbols:["🦊","🌵","🍔","💎"],plant:"🌵",animal:"🦊",food:"🍔"}];
+  const symbolSets=[{symbols:["apple","tree","fish","fire"],plant:"tree",animal:"fish",food:"apple"},{symbols:["cat","flower","pizza","star"],plant:"flower",animal:"cat",food:"pizza"},{symbols:["fox","cactus","hamburger","gem"],plant:"cactus",animal:"fox",food:"hamburger"}];
   const [set] = useState(()=>symbolSets[Math.floor(Math.random()*symbolSets.length)]);
   const fd = getFirstDigit(serialNumber);
   const correct = fd<=3?set.plant:fd<=6?set.animal:set.food;
   const [shuffled] = useState(()=>[...set.symbols].sort(()=>Math.random()-0.5));
   const [solved,setSolved] = useState(false);
   return (<div className="module-content"><h3>🎨 SYMBOL PANEL</h3><p className="module-hint">Press the correct symbol</p>
-    <div className="options-grid">{shuffled.map(s=>(<button key={s} onClick={()=>{if(solved)return;if(s===correct){setSolved(true);onSuccess();}else onStrike();}} disabled={solved} className={`symbol-btn ${solved&&s===correct?"correct":""}`}>{s}</button>))}</div></div>);
+    <div className="options-grid">{shuffled.map(s=>(<button key={s} onClick={()=>{if(solved)return;if(s===correct){setSolved(true);onSuccess();}else onStrike();}} disabled={solved} className={`symbol-btn ${solved&&s===correct?"correct":""}`}><img className="pixel-art" alt={s} src={PX.symbol(s)} width={48} height={48}/></button>))}</div></div>);
 };
 
 /* COLOR SWITCHBOARD */
@@ -401,22 +445,62 @@ const CombinationLockModule = ({ serialNumber, onSuccess, onStrike }) => {
     <button onClick={tryUnlock} disabled={solved} className={`submit-btn ${solved?"correct":""}`}>{solved?"✓ UNLOCKED":"TRY UNLOCK"}</button></div>);
 };
 
+/* ===== SOUND (Web Audio, no files). window.SFX is also free for modules to use. ===== */
+const SFX = window.SFX = (() => {
+  let ctx = null, muted = false;
+  try { muted = localStorage.getItem("eslbomb-mute") === "1"; } catch (e) {}
+  const ac = () => { try { if (!ctx) { const C = window.AudioContext || window.webkitAudioContext; if (!C) return null; ctx = new C(); } if (ctx.state === "suspended") ctx.resume(); return ctx; } catch (e) { return null; } };
+  const tone = (f, at, dur, type = "square", vol = 0.07, f2) => { const a = ac(); if (!a || muted) return; try {
+    const o = a.createOscillator(), g = a.createGain(), t = a.currentTime + at; o.type = type; o.frequency.setValueAtTime(f, t);
+    if (f2) o.frequency.exponentialRampToValueAtTime(f2, t + dur);
+    g.gain.setValueAtTime(vol, t); g.gain.exponentialRampToValueAtTime(0.0001, t + dur); o.connect(g); g.connect(a.destination); o.start(t); o.stop(t + dur + 0.03); } catch (e) {} };
+  const noise = (at, dur, vol, cut) => { const a = ac(); if (!a || muted) return; try {
+    const n = Math.floor(a.sampleRate * dur), buf = a.createBuffer(1, n, a.sampleRate), d = buf.getChannelData(0); for (let i = 0; i < n; i++) d[i] = Math.random() * 2 - 1;
+    const src = a.createBufferSource(), fl = a.createBiquadFilter(), g = a.createGain(), t = a.currentTime + at; src.buffer = buf; fl.type = "lowpass";
+    fl.frequency.setValueAtTime(cut, t); fl.frequency.exponentialRampToValueAtTime(60, t + dur); g.gain.setValueAtTime(vol, t); g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+    src.connect(fl); fl.connect(g); g.connect(a.destination); src.start(t); } catch (e) {} };
+  return {
+    unlock: ac,
+    isMuted: () => muted,
+    setMuted: (m) => { muted = m; try { localStorage.setItem("eslbomb-mute", m ? "1" : "0"); } catch (e) {} },
+    /* one clock tick. gap = seconds until the next tick, so the extra ticks fit however fast the clock runs */
+    tick: (timeLeft, gap = 1) => { const f = timeLeft <= 10 ? 1500 : timeLeft <= 30 ? 1250 : 1000, n = timeLeft <= 10 ? 4 : timeLeft <= 30 ? 2 : 1, v = timeLeft <= 60 ? 0.06 : 0.03;
+      for (let i = 0; i < n; i++) tone(f, i * gap / n, 0.045, "square", v); },
+    count: () => tone(520, 0, 0.14, "square", 0.07),
+    go: () => tone(1040, 0, 0.4, "square", 0.07),
+    strike: () => { tone(160, 0, 0.45, "sawtooth", 0.14, 70); tone(113, 0, 0.45, "square", 0.08, 50); },
+    defuse: () => { tone(660, 0, 0.12, "triangle", 0.12); tone(880, 0.11, 0.12, "triangle", 0.12); tone(1320, 0.22, 0.3, "triangle", 0.12); },
+    win: () => { [523, 659, 784, 1047, 784, 1047].forEach((f, i) => tone(f, i * 0.13, i === 5 ? 0.7 : 0.14, "triangle", 0.13)); },
+    unlockFinale: () => { tone(330, 0, 0.1, "square", 0.08); tone(440, 0.1, 0.1, "square", 0.08); tone(330, 0.2, 0.1, "square", 0.08); tone(660, 0.3, 0.35, "square", 0.08); },
+    stars: (n) => { for (let i = 0; i < n; i++) tone(880 + i * 220, 0.6 + i * 0.45, 0.25, "triangle", 0.12); },
+    boom: () => { noise(0, 1.8, 0.6, 2500); tone(110, 0, 1.2, "sine", 0.35, 28); },
+  };
+})();
+
 /* ===== MODULE WRAPPER ===== */
-const ModuleWrapper = ({ module, serialNumber, onComplete, onStrike }) => {
+const ModuleWrapper = ({ module, serialNumber, onComplete, onStrike, locked, finale }) => {
   const [status,setStatus] = useState("active");
   const handleSuccess = () => {setStatus("success");setTimeout(()=>onComplete(module.id),600);};
-  const components = {colorWires:ColorWiresModule,userName:UserNameModule,monsterLab:MonsterLabModule,guessWho:GuessWhoModule,vendingMachine:VendingMachineModule,symbolKeypad:SymbolKeypadModule,numberKeypad:NumberKeypadModule,bigButton:BigButtonModule,sliders:SlidersModule,crackTheCode:CrackTheCodeModule,wordButtons:WordButtonsModule,memory:MemoryModule,symbolPanel:SymbolPanelModule,colorSwitchboard:ColorSwitchboardModule,worldClock:WorldClockModule,combinationLock:CombinationLockModule};
+  const components = {colorWires:ColorWiresModule,userName:UserNameModule,monsterLab:MonsterLabModule,guessWho:GuessWhoModule,vendingMachine:VendingMachineModule,symbolKeypad:SymbolKeypadModule,numberKeypad:NumberKeypadModule,bigButton:BigButtonModule,sliders:SlidersModule,crackTheCode:CrackTheCodeModule,wordButtons:WordButtonsModule,memory:MemoryModule,symbolPanel:SymbolPanelModule,colorSwitchboard:ColorSwitchboardModule,worldClock:WorldClockModule,combinationLock:CombinationLockModule,...Object.fromEntries((window.EXTRA_MODULES||[]).map(m=>[m.type,m.Component]))};
   const Comp = components[module.type];
-  return (<div className={`module-wrapper ${status}`}>
+  /* the finale is not built until it unlocks, so nothing in it can be read or started early */
+  if(locked) return (<div className="module-wrapper locked-module"><div className="lock-face"><div className="lock-icon">🔒</div><div className="lock-title">LAST MODULE</div><div className="lock-sub">Finish the others first!</div></div></div>);
+  return (<div className={`module-wrapper ${status} ${finale?"finale":""}`}>
+    {finale&&status==="active"&&<div className="finale-tag">⚠️ LAST MODULE</div>}
+    {TEST_MODE&&status==="active"&&<div className="test-tools"><button onClick={handleSuccess}>TEST: SOLVE</button><button onClick={onStrike}>TEST: STRIKE</button></div>}
     <div className="module-status-indicator">{status==="success"&&<span className="status-icon">✓</span>}{status==="active"&&<span className="status-dot"></span>}</div>
-    {status==="success"?(<div className="module-complete"><span className="complete-icon">✅</span><span>MODULE DEFUSED</span></div>):Comp?(<Comp serialNumber={serialNumber} onSuccess={handleSuccess} onStrike={onStrike}/>):null}</div>);
+    {Comp?(<Comp serialNumber={serialNumber} onSuccess={handleSuccess} onStrike={onStrike}/>):null}
+    {status==="success"&&(<div className="module-complete"><span className="complete-badge"><span className="complete-icon">✅</span><span>MODULE DEFUSED</span></span></div>)}</div>);
 };
 
 /* ===== EXPERT MANUAL ===== */
-const ExpertManual = () => {
+/* manual section id -> module id, for the 16 built-in modules (M01–M12 sections already use the module id) */
+const SECTION_MODULE = {wires:"colorWires",user:"userName",monster:"monsterLab",guess:"guessWho",vending:"vendingMachine",symbol:"symbolKeypad",keypad:"numberKeypad",bigbtn:"bigButton",sliders:"sliders",crack:"crackTheCode",word:"wordButtons",mem:"memory",sympanel:"symbolPanel",switch:"colorSwitchboard",world:"worldClock",combo:"combinationLock"};
+/* `only` = list of module ids; when given, the manual shows just those sections */
+const ExpertManual = ({only}) => {
   const [openSection,setOpenSection] = useState(null);
   const toggle = (id) => setOpenSection(o=>o===id?null:id);
-  const S = ({id,title,children}) => (<div className="manual-section"><h2 onClick={()=>toggle(id)} style={{cursor:"pointer"}}>{title} {openSection===id?"▼":"▶"}</h2>{openSection===id&&<div>{children}</div>}</div>);
+  const S = ({id,title,children}) => only&&!only.includes(SECTION_MODULE[id]||id) ? null : (<div className="manual-section"><h2 onClick={()=>toggle(id)} style={{cursor:"pointer"}}>{title} {openSection===id?"▼":"▶"}</h2>{openSection===id&&<div>{children}</div>}</div>);
   return (<div className="manual-page-content">
     <h1 className="manual-title">📖 BOMB DEFUSAL MANUAL</h1><p className="manual-subtitle">CLASSIFIED — For Experts Only · Tap a section to expand</p>
 
@@ -445,7 +529,7 @@ const ExpertManual = () => {
       <p><strong>Ask:</strong> "What is the serial number?"</p>
       <p><strong>Step 1:</strong> Find the <strong>last LETTER</strong> in the serial number.</p>
       <p><strong>Step 2:</strong> Look up the name that starts with that letter in the table below.</p>
-      <p><strong>Step 3:</strong> Tell the Defuser: "Press [name]."</p>
+      <p><strong>Step 3:</strong> Spell the name for the Defuser, one letter at a time: "K… A… T… E." The Defuser types it and presses SUBMIT.</p>
       <table className="manual-table"><thead><tr><th>Letter</th><th>Name</th><th>Letter</th><th>Name</th><th>Letter</th><th>Name</th></tr></thead><tbody>
         <tr><td>A</td><td>Alice</td><td>J</td><td>Jack</td><td>S</td><td>Sam</td></tr>
         <tr><td>B</td><td>Bob</td><td>K</td><td>Kate</td><td>T</td><td>Tom</td></tr>
@@ -473,13 +557,12 @@ const ExpertManual = () => {
     </S>
 
     <S id="guess" title="🕵️ Guess Who">
-      <p><strong>Ask:</strong> "What color are the eyes?" (Brown, Blue, or Green) and "What color is the hair?" (Black, Brown, Blonde, Red, or Gray)</p>
-      <p><strong>Step:</strong> Find the matching agent in the table and tell the Defuser to press it.</p>
-      <table className="manual-table"><thead><tr><th>Eyes ↓ Hair →</th><th>Black</th><th>Brown</th><th>Blonde</th><th>Red</th><th>Gray</th></tr></thead><tbody>
-        <tr><td><strong>Brown</strong></td><td>Rat</td><td>Ox</td><td>Tiger</td><td>Rabbit</td><td>Dragon</td></tr>
-        <tr><td><strong>Blue</strong></td><td>Snake</td><td>Horse</td><td>Goat</td><td>Monkey</td><td>Rooster</td></tr>
-        <tr><td><strong>Green</strong></td><td>Dog</td><td>Pig</td><td>Panda</td><td>Hippo</td><td>Giraffe</td></tr>
-      </tbody></table>
+      <p><strong>Ask:</strong> "Is it a boy or a girl?" "What color are the eyes?" (Brown, Blue, or Green) and "What color is the hair?" (Black, Brown, Blonde, Red, or Gray)</p>
+      <p><strong>Step:</strong> Find the name in the right table and tell the Defuser to press it.</p>
+      {[["boy","BOY"],["girl","GIRL"]].map(([g,label])=>(<React.Fragment key={g}><p><strong>{label}</strong></p>
+      <table className="manual-table"><thead><tr><th>Eyes ↓ Hair →</th>{GUESS_HAIR.map(h=><th key={h}>{h}</th>)}</tr></thead><tbody>
+        {GUESS_EYES.map((e,ei)=>(<tr key={e}><td><strong>{e}</strong></td>{GUESS_NAMES[g][ei].map(n=><td key={n}>{n}</td>)}</tr>))}
+      </tbody></table></React.Fragment>))}
     </S>
 
     <S id="vending" title="🏭 Vending Machine">
@@ -501,12 +584,9 @@ const ExpertManual = () => {
       <p><strong>Step 1:</strong> Find the column below that contains <strong>ALL</strong> the symbols the Defuser describes.</p>
       <p><strong>Step 2:</strong> Tell the Defuser to press them in <strong>column order</strong> (top to bottom).</p>
       <table className="manual-table"><thead><tr><th>Col 1</th><th>Col 2</th><th>Col 3</th><th>Col 4</th></tr></thead><tbody>
-        <tr><td>©</td><td>☎</td><td>©</td><td>★</td></tr>
-        <tr><td>★</td><td>★</td><td>☎</td><td>©</td></tr>
-        <tr><td>☆</td><td>✿</td><td>✿</td><td>☎</td></tr>
-        <tr><td>❖</td><td>❖</td><td>☆</td><td>✿</td></tr>
+        {[0,1,2,3].map(r=>(<tr key={r}>{SYMBOL_COLUMNS.map((col,c)=>(<td key={c} style={{background:"#1a1a2e"}}><img className="pixel-art" alt={col[r]} src={PX.glyph(col[r])} width={32} height={32}/></td>))}</tr>))}
       </tbody></table>
-      <p style={{color:"#888",fontStyle:"italic"}}>Example: If symbols are ©, ★, ☆, ❖ → that's Column 1. Press in order: © then ★ then ☆ then ❖.</p>
+      <p style={{color:"#888",fontStyle:"italic"}}>Example: If the symbols are a C in a circle, a star, an empty star and four diamonds → that's Column 1. Press them in that order.</p>
     </S>
 
     <S id="keypad" title="🔢 Number Keypad">
@@ -576,7 +656,7 @@ const ExpertManual = () => {
       <p><strong>Step 2:</strong></p>
       <p>• If the digit is <strong>0, 1, 2, or 3</strong> → press the <strong>PLANT</strong> symbol (tree, flower, cactus).</p>
       <p>• If the digit is <strong>4, 5, or 6</strong> → press the <strong>ANIMAL</strong> symbol (cat, fox, fish).</p>
-      <p>• If the digit is <strong>7, 8, or 9</strong> → press the <strong>FOOD</strong> symbol (apple, pizza, burger).</p>
+      <p>• If the digit is <strong>7, 8, or 9</strong> → press the <strong>FOOD</strong> symbol (apple, pizza, hamburger).</p>
       <p style={{color:"#888",fontStyle:"italic"}}>Ask the Defuser to describe each symbol. Help them identify which is a plant, animal, or food.</p>
     </S>
 
@@ -634,50 +714,170 @@ const ExpertManual = () => {
       <p>4. "Press UNLOCK."</p>
       <p style={{color:"#888",fontStyle:"italic"}}>The pattern is always RIGHT → LEFT → RIGHT. "Mod 40" means if the number is 40 or more, subtract 40.</p>
     </S>
+    {(window.EXTRA_MODULES||[]).map(m=>(<S key={m.id} id={m.id} title={m.name}><m.Manual/></S>))}
   </div>);
 };
 
 /* ===== SETTINGS / BOMB / WIN-LOSE / APP — same structure as before ===== */
+/* fair shuffle (Fisher–Yates) for drawing a mission from the module pool */
+const shuffled = (arr) => { const a=[...arr]; for(let i=a.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[a[i],a[j]]=[a[j],a[i]];} return a; };
+const rankOf = (m) => ["A0","A1","A2","B1","B2"].indexOf(String(m.difficulty).slice(0,2));
+/* setup list order: difficulty first, then A–Z by name (ignoring the emoji) */
+const SORTED_MODULES = (() => { const rank=(m)=>rankOf(m), nm=(m)=>m.name.replace(/^[^A-Za-z]+/,"");
+  return [...MODULES_LIST].sort((x,y)=>rank(x)-rank(y)||nm(x).localeCompare(nm(y))); })();
+/* ===== CAMPAIGN =====
+   One line per mission: edit freely. `modules` are module ids; the LAST one is the finale
+   (it stays locked until the others are defused; needs 3 or more modules). `timer` is in seconds. */
+const MISSIONS = [
+  { id:"m1",  name:"First Bomb",       timer:300, modules:["colorWires","monsterLab"] },
+  { id:"m2",  name:"Who Is It?",       timer:300, modules:["userName","colorWires","guessWho"] },
+  { id:"m3",  name:"Snack Time",       timer:300, modules:["symbolKeypad","monsterLab","vendingMachine"] },
+  { id:"m4",  name:"Number Day",       timer:300, modules:["numberKeypad","sliders","bigButton"] },
+  { id:"m5",  name:"Family Day",       timer:420, modules:["wordButtons","guessWho","familyPhoto"] },
+  { id:"m6",  name:"Lunch Time",       timer:420, modules:["vendingMachine","giftShop","lunchRush"] },
+  { id:"m7",  name:"School Day",       timer:420, modules:["memory","messyDesk","schoolBell"] },
+  { id:"m8",  name:"Rainy Day",        timer:420, modules:["crackTheCode","colorSwitchboard","weatherWardrobe"] },
+  { id:"m9",  name:"City Trip",        timer:420, modules:["combinationLock","worldClock","ticketMachine"] },
+  { id:"m10", name:"Night House",      timer:600, modules:["symbolPanel","moodPlugs","midnightSnack"] },
+  { id:"m11", name:"Monster Hospital", timer:600, modules:["monsterLab","mysteryGuest","monsterClinic"] },
+  { id:"m12", name:"The Big One",      timer:600, modules:["schoolBell","giftShop","ticketMachine","animalRace"] },
+].map((m,i)=>({...m,num:i+1,modules:m.modules.filter(id=>MODULES_LIST.some(x=>x.id===id))}));
+
+const TEAMS = [["🐯","TIGERS"],["🦁","LIONS"],["🐵","MONKEYS"],["🐻","BEARS"],["🐰","RABBITS"],["🐶","DOGS"],["🐱","CATS"],["🐦","BIRDS"],["🐟","FISH"],["🐘","ELEPHANTS"],["🐴","HORSES"],["🐸","FROGS"]];
+
+/* saved on this device only (the devices are not linked) */
+const STORE = {
+  get:(k,d)=>{try{const v=localStorage.getItem("eslbomb-"+k);return v==null?d:JSON.parse(v);}catch(e){return d;}},
+  set:(k,v)=>{try{localStorage.setItem("eslbomb-"+k,JSON.stringify(v));}catch(e){}},
+};
+const fmtTime = (t) => `${Math.floor(t/60)}:${String(t%60).padStart(2,"0")}`;
+/* stars: 1 for defusing the bomb, +1 for 0–1 mistakes, +1 for a quarter of the time still on the clock */
+const fastTime = (timer) => Math.ceil(timer/4);
+const starsFor = (r) => !r.win ? 0 : 1 + (r.strikes<=1?1:0) + (r.timeLeft>=fastTime(r.timer)?1:0);
+
+/* Turn a spec into one bomb. Called again for every replay, so each bomb is a fresh draw.
+   spec = {mission} for the campaign, or {timer,pool,count,finale} from free play. */
+const buildMission = (spec) => {
+  let order, hasFinale;
+  if(spec.mission){ const ids=spec.mission.modules; order=[...shuffled(ids.slice(0,-1)),ids[ids.length-1]]; hasFinale=ids.length>=3; }
+  else{
+    let ids=shuffled(spec.pool).slice(0,spec.count);
+    while(ids.length<spec.count)ids=[...ids,...shuffled(spec.pool).slice(0,spec.count-ids.length)]; /* pool smaller than the count: fill with copies, spread evenly */
+    order=shuffled(ids); hasFinale=!!spec.finale&&order.length>=3;
+    if(hasFinale){ /* the hardest module is the finale */ const r=(id)=>rankOf(MODULES_LIST.find(m=>m.id===id)); const top=order.reduce((a,b)=>r(b)>r(a)?b:a); const i=order.indexOf(top); order=[...order.slice(0,i),...order.slice(i+1),top]; }
+  }
+  /* each copy gets its own id so the bomb can tell copies apart */
+  const modules=order.map((id,i)=>({...MODULES_LIST.find(m=>m.id===id),id:id+"#"+i,baseId:id}));
+  return {timer:spec.mission?spec.mission.timer:spec.timer,modules,finaleId:hasFinale?modules[modules.length-1].id:null,mission:spec.mission||null,spec};
+};
+
 const SettingsPanel = ({onStartGame}) => {
-  const [timer,setTimer]=useState(300);const [moduleCount,setModuleCount]=useState(3);
-  const [sel,setSel]=useState(["colorWires","userName","monsterLab"]);
-  const toggle=(id)=>setSel(p=>p.includes(id)?p.filter(m=>m!==id):[...p,id]);
-  const handleStart=()=>{if(sel.length<moduleCount)return;onStartGame({timer,modules:sel.slice(0,moduleCount).map(id=>MODULES_LIST.find(m=>m.id===id)),moduleCount});};
+  const [timer,setTimer]=useState(300);
+  /* MODULES = how many go on the bomb. The pool (sel) = what the bomb is built from; it needs at least 1.
+     - pool bigger than MODULES: the bomb draws that many at random, no repeats.
+     - pool smaller than MODULES: every pool module goes on, then copies fill the rest (1 ticked, MODULES 6 = six copies).
+     Raising MODULES ticks the next modules in list order (easiest first, then A–Z), unless the teacher has
+     already cut the pool below the count on purpose; then it only adds copies. Lowering it never unticks anything. */
+  /* (the draw itself is in buildMission) */
+  const [pool,setPool]=useState({count:3,sel:SORTED_MODULES.slice(0,3).map(m=>m.id)});
+  const {count:moduleCount,sel}=pool;
+  const changeCount=(n)=>setPool(({count,sel})=>({count:n,sel:sel.length<count?sel:[...sel,...SORTED_MODULES.filter(m=>!sel.includes(m.id)).slice(0,Math.max(0,n-sel.length)).map(m=>m.id)]}));
+  const toggle=(id)=>setPool(p=>p.sel.includes(id)?(p.sel.length<=1?p:{...p,sel:p.sel.filter(m=>m!==id)}):{...p,sel:[...p.sel,id]});
+  const [finale,setFinale]=useState(true);
+  const handleStart=()=>{SFX.unlock();onStartGame({timer,pool:sel,count:moduleCount,finale});};
   const presets=[{l:"2:00",v:120},{l:"3:00",v:180},{l:"5:00",v:300},{l:"7:00",v:420},{l:"10:00",v:600}];
   return (<div className="settings-panel"><h2>⚙️ MISSION SETUP</h2>
     <div className="setting-group"><label>TIMER</label><div className="timer-selector">{presets.map(p=>(<button key={p.v} onClick={()=>setTimer(p.v)} className={`timer-btn ${timer===p.v?"active":""}`}>{p.l}</button>))}</div></div>
-    <div className="setting-group"><label>MODULES: {moduleCount}</label><input type="range" min={1} max={8} value={moduleCount} onChange={e=>setModuleCount(Number(e.target.value))} className="module-slider"/></div>
-    <div className="setting-group"><label>SELECT MODULES ({sel.length} selected)</label>
-      <div className="module-toggles">{MODULES_LIST.map(mod=>(<button key={mod.id} onClick={()=>toggle(mod.id)} className={`module-toggle ${sel.includes(mod.id)?"active":""}`}><span className="toggle-name">{mod.name}</span><span className="toggle-diff">{mod.difficulty}</span></button>))}</div></div>
-    <button onClick={handleStart} disabled={sel.length<moduleCount} className="start-game-btn">🚀 START MISSION</button>
-    {sel.length<moduleCount&&<p className="warning-text">Select at least {moduleCount} modules!</p>}</div>);
+    <div className="setting-group"><label>MODULES: {moduleCount}</label><input type="range" min={1} max={10} value={moduleCount} onChange={e=>changeCount(Number(e.target.value))} className="module-slider"/></div>
+    <div className="setting-group"><label>MODULE POOL ({sel.length} selected)</label>
+      <p className="pool-note">{sel.length>moduleCount?`Each bomb gets ${moduleCount} of these ${sel.length} at random.`:sel.length===moduleCount?`Every bomb gets these ${moduleCount}. Add more for a random pick.`:sel.length===1?`Every bomb gets ${moduleCount} copies of this module.`:`Every bomb gets these ${sel.length}, plus ${moduleCount-sel.length} more ${moduleCount-sel.length===1?"copy":"copies"} to make ${moduleCount}.`}</p>
+      <div className="module-toggles">{SORTED_MODULES.map(mod=>(<button key={mod.id} onClick={()=>toggle(mod.id)} className={`module-toggle ${sel.includes(mod.id)?"active":""} ${sel.length===1&&sel.includes(mod.id)?"locked":""}`}><span className="toggle-name">{mod.name}</span><span className="toggle-diff">{mod.difficulty}</span></button>))}</div></div>
+    <div className="setting-group"><label>LAST MODULE</label><div className="timer-selector"><button onClick={()=>setFinale(true)} className={`timer-btn ${finale?"active":""}`}>🔒 LOCKED UNTIL THE END</button><button onClick={()=>setFinale(false)} className={`timer-btn ${!finale?"active":""}`}>ALL OPEN</button></div>
+      <p className="pool-note" style={{marginTop:"0.5rem"}}>{finale?(moduleCount>=3?"The hardest module stays locked until the others are defused.":"Needs 3 or more modules, so this bomb has no lock."):"All modules can be played from the start."}</p></div>
+    <button onClick={handleStart} className="start-game-btn">🚀 START MISSION</button></div>);
 };
 
-const BombComponent = ({config,onGameEnd}) => {
+const BombComponent = ({config,team,onGameEnd}) => {
   const [timeLeft,setTimeLeft]=useState(config.timer);const [strikes,setStrikes]=useState(0);const [completed,setCompleted]=useState([]);
-  const [serialNumber]=useState(generateSerialNumber);const [gameStatus,setGameStatus]=useState("countdown");const [shake,setShake]=useState(false);const [countdown,setCountdown]=useState(3);const maxStrikes=3;
-  useEffect(()=>{if(gameStatus!=="countdown")return;if(countdown<=0){setGameStatus("playing");return;}const t=setTimeout(()=>setCountdown(c=>c-1),1000);return()=>clearTimeout(t);},[gameStatus,countdown]);
-  useEffect(()=>{if(gameStatus!=="playing")return;const t=setInterval(()=>setTimeLeft(p=>{if(p<=1){setGameStatus("lost");return 0;}return p-1;}),1000);return()=>clearInterval(t);},[gameStatus]);
+  const [serialNumber]=useState(generateSerialNumber);const [gameStatus,setGameStatus]=useState("countdown");const [shake,setShake]=useState(false);const [countdown,setCountdown]=useState(3);const maxStrikes=3;const [muted,setMuted]=useState(SFX.isMuted());
+  /* every strike makes the clock run faster: x1, x1.25, x1.5 */
+  const speed=1+0.25*strikes;
+  useEffect(()=>{if(gameStatus!=="countdown")return;if(countdown<=0){SFX.go();setGameStatus("playing");return;}SFX.count();const t=setTimeout(()=>setCountdown(c=>c-1),1000);return()=>clearTimeout(t);},[gameStatus,countdown]);
+  useEffect(()=>{if(gameStatus!=="playing")return;const t=setInterval(()=>setTimeLeft(p=>{if(p<=1){setGameStatus("lost");return 0;}return p-1;}),1000/speed);return()=>clearInterval(t);},[gameStatus,speed]);
+  useEffect(()=>{if(gameStatus==="playing"&&timeLeft>0&&timeLeft<config.timer)SFX.tick(timeLeft,1/speed);},[timeLeft]);
   useEffect(()=>{if(completed.length===config.modules.length&&config.modules.length>0&&gameStatus==="playing")setGameStatus("won");},[completed,config.modules.length,gameStatus]);
-  useEffect(()=>{if(gameStatus==="won")onGameEnd("win",timeLeft);if(gameStatus==="lost")onGameEnd("lose",strikes>=maxStrikes?"strikes":"time");},[gameStatus]);
-  const handleStrike=()=>{const s=strikes+1;setStrikes(s);setShake(true);setTimeout(()=>setShake(false),500);if(s>=maxStrikes)setGameStatus("lost");};
+  const stats=useRef({}); /* per module: {strikes, solved} for the results screen */
+  const stat=(id)=>stats.current[id]||(stats.current[id]={strikes:0,solved:false});
+  useEffect(()=>{if(gameStatus!=="won"&&gameStatus!=="lost")return;const win=gameStatus==="won";if(win)SFX.win();else SFX.boom();
+    onGameEnd({win,reason:win?null:strikes>=maxStrikes?"strikes":"time",timeLeft,timer:config.timer,strikes,modules:config.modules.map(m=>({name:m.name,...stat(m.id)}))});},[gameStatus]);
+  const finaleLocked=!!config.finaleId&&completed.length<config.modules.length-1;
+  useEffect(()=>{if(config.finaleId&&!finaleLocked&&gameStatus==="playing")SFX.unlockFinale();},[finaleLocked]);
+  const strikesRef=useRef(0); /* a ref, so a module holding an old copy of onStrike still counts correctly */
+  const handleStrike=(id)=>{if(strikesRef.current>=maxStrikes)return;stat(id).strikes++;const s=++strikesRef.current;SFX.strike();setStrikes(s);setShake(true);setTimeout(()=>setShake(false),500);if(s>=maxStrikes)setGameStatus("lost");};
   const tc=timeLeft<30?"#ff0000":timeLeft<60?"#ff8800":"#00ff00";
   return (<div className={`bomb-container ${shake?"shake":""}`}>
     {gameStatus==="countdown"&&<div className="countdown-overlay"><div className="countdown-number">{countdown>0?countdown:"GO!"}</div></div>}
-    <div className="bomb-header"><div className="timer-display" style={{color:tc,textShadow:`0 0 15px ${tc}`}}>{Math.floor(timeLeft/60)}:{String(timeLeft%60).padStart(2,"0")}</div>
-      <div className="serial-display"><span className="serial-label">SN:</span><span className="serial-value">{serialNumber}</span></div>
-      <div className="strikes-display">{Array.from({length:maxStrikes},(_,i)=>(<span key={i} className={`strike-indicator ${i<strikes?"active":""}`}>{i<strikes?"❌":"⭕"}</span>))}</div></div>
-    <div className="modules-grid">{config.modules.map(mod=>(<ModuleWrapper key={mod.id} module={mod} serialNumber={serialNumber} onComplete={id=>setCompleted(p=>[...p,id])} onStrike={handleStrike}/>))}</div></div>);
+    <div className="bomb-header"><div className="timer-display" style={{color:tc,textShadow:`0 0 15px ${tc}`}}>{Math.floor(timeLeft/60)}:{String(timeLeft%60).padStart(2,"0")}{strikes>0&&<span className="speed-badge">⏩ ×{speed}</span>}</div>
+      <div className="serial-display">{team&&<div className="team-tag">{team[0]} {team[1]}{config.mission?` · MISSION ${config.mission.num}`:""}</div>}<span className="serial-label">SN:</span><span className="serial-value">{serialNumber}</span></div>
+      <div className="strikes-display">{Array.from({length:maxStrikes},(_,i)=>(<span key={i} className={`strike-indicator ${i<strikes?"active":""}`}>{i<strikes?"❌":"⭕"}</span>))}<button className="mute-btn" aria-label={muted?"sound off":"sound on"} onClick={()=>{SFX.setMuted(!muted);setMuted(!muted);}}>{muted?"🔇":"🔊"}</button></div></div>
+    <div className="modules-grid">{config.modules.map(mod=>(<ModuleWrapper key={mod.id} module={mod} serialNumber={serialNumber} locked={finaleLocked&&mod.id===config.finaleId} finale={mod.id===config.finaleId} onComplete={id=>{stat(id).solved=true;if(completed.length+1<config.modules.length)SFX.defuse();setCompleted(p=>[...p,id]);}} onStrike={()=>handleStrike(mod.id)}/>))}</div></div>);
 };
 
-const WinScreen=({timeLeft,onPlayAgain})=>(<div className="game-over-screen win"><div className="confetti-bg"></div><h1>🎉 BOMB DEFUSED!</h1><p className="result-time">Time: {Math.floor(timeLeft/60)}:{String(timeLeft%60).padStart(2,"0")}</p><p className="result-message">Outstanding teamwork!</p><button className="play-again-btn win" onClick={onPlayAgain}>PLAY AGAIN</button></div>);
-const LoseScreen=({reason,onPlayAgain})=>(<div className="game-over-screen lose"><div className="explosion-bg"></div><h1>💥 MISSION FAILED</h1><p className="result-reason">{reason==="time"?"Time ran out!":"Too many mistakes!"}</p><p className="result-message">Don't give up — try again!</p><button className="play-again-btn lose" onClick={onPlayAgain}>TRY AGAIN</button></div>);
+/* ===== RESULTS ===== */
+const ResultsScreen = ({result,config,team,best,isNewBest,onReplay,onSwap,onNext,onMenu}) => {
+  const stars=starsFor(result), need=fastTime(result.timer);
+  useEffect(()=>{SFX.stars(stars);},[]);
+  const Row=({ok,children})=>(<div className={`check-row ${ok?"ok":""}`}><span>{ok?"✅":"⬜"}</span><span>{children}</span></div>);
+  return (<div className={`game-over-screen ${result.win?"win":"lose"}`}><div className={result.win?"confetti-bg":"explosion-bg"}></div>
+    <p className="result-team">{team[0]} TEAM {team[1]}{config.mission?` · MISSION ${config.mission.num}: ${config.mission.name.toUpperCase()}`:""}</p>
+    <h1>{result.win?"🎉 BOMB DEFUSED!":"💥 BOOM!"}</h1>
+    {!result.win&&<p className="result-reason">{result.reason==="time"?"Time ran out!":"Too many mistakes!"}</p>}
+    <div className="stars-row">{[0,1,2].map(i=>(<span key={i} className={`star ${i<stars?"on":""}`} style={{animationDelay:`${0.6+i*0.45}s`}}>★</span>))}</div>
+    {isNewBest&&<p className="new-best">NEW BEST!</p>}
+    {!isNewBest&&best&&best.stars>0&&<p className="old-best">Best: {"★".repeat(best.stars)}{"☆".repeat(3-best.stars)}</p>}
+    <div className="result-card">
+      <Row ok={result.win}>Bomb defused</Row>
+      <Row ok={result.win&&result.strikes<=1}>0 or 1 mistakes <em>(you: {result.strikes})</em></Row>
+      <Row ok={result.win&&result.timeLeft>=need}>Time left {fmtTime(need)} or more <em>(you: {fmtTime(result.timeLeft)})</em></Row>
+    </div>
+    <div className="result-card">{result.modules.map((m,i)=>(<div key={i} className="mod-row"><span>{m.solved?"✅":"💣"}</span><span className="mod-name">{m.name}</span><span className="mod-x">{m.strikes>0?"❌".repeat(m.strikes):""}</span></div>))}</div>
+    <div className="result-buttons">
+      {result.win&&onNext&&<button className="play-again-btn win" onClick={onNext}>NEXT MISSION ▶</button>}
+      <button className={`play-again-btn ${result.win&&onNext?"plain":result.win?"win":"lose"}`} onClick={onReplay}>{result.win?"PLAY AGAIN":"TRY AGAIN"}</button>
+      <button className="play-again-btn plain" onClick={onSwap}>🔄 SWAP ROLES: OPEN MANUAL</button>
+      <button className="play-again-btn ghost" onClick={onMenu}>MENU</button>
+    </div></div>);
+};
+
+/* ===== MISSION SELECT ===== */
+const MissionSelect = ({progress,onPick}) => {
+  const total=MISSIONS.reduce((n,m)=>n+((progress[m.id]||{}).stars||0),0);
+  const next=MISSIONS.find(m=>!((progress[m.id]||{}).stars));
+  return (<div className="settings-panel" style={{maxWidth:"760px"}}><h2>🎯 MISSIONS</h2>
+    <p className="mission-total">★ {total} / {MISSIONS.length*3}</p>
+    <div className="mission-grid">{MISSIONS.map(m=>{const st=(progress[m.id]||{}).stars||0;return (
+      <button key={m.id} className={`mission-card ${st>0?"done":""} ${next&&next.id===m.id?"next":""}`} onClick={()=>{SFX.unlock();onPick(m);}}>
+        <span className="mission-num">{m.num}</span><span className="mission-name">{m.name}</span>
+        <span className="mission-stars">{"★".repeat(st)}<i>{"★".repeat(3-st)}</i></span>
+        <span className="mission-meta">{m.modules.length} modules · {fmtTime(m.timer)}</span>
+        {next&&next.id===m.id&&<span className="mission-next">NEXT</span>}</button>);})}</div></div>);
+};
 
 function App(){
   const [screen,setScreen]=useState("menu");const [config,setConfig]=useState(null);const [showManual,setShowManual]=useState(false);const [gameResult,setGameResult]=useState(null);const [gameKey,setGameKey]=useState(0);
+  const [teamIdx,setTeamIdx]=useState(()=>{const t=STORE.get("team",null);if(t!=null&&TEAMS[t])return t;const r=Math.floor(Math.random()*TEAMS.length);STORE.set("team",r);return r;});
+  const team=TEAMS[teamIdx];const nextTeam=()=>{const t=(teamIdx+1)%TEAMS.length;setTeamIdx(t);STORE.set("team",t);};
+  const [progress,setProgress]=useState(()=>STORE.get("progress",{})); /* {missionId:{stars,timeLeft}} */
+  const [manualOnly,setManualOnly]=useState(null); /* null = whole manual, or {label, ids} */
   const reset=()=>{setScreen("menu");setConfig(null);setShowManual(false);setGameResult(null);setGameKey(k=>k+1);};
-  const startGame=(cfg)=>{setConfig(cfg);setGameResult(null);setGameKey(k=>k+1);setScreen("playing");};
-  const endGame=(result,detail)=>{setGameResult({result,detail});setScreen(result==="win"?"win":"lose");};
+  const startGame=(spec)=>{setConfig(buildMission(spec));setGameResult(null);setShowManual(false);setGameKey(k=>k+1);setScreen("playing");};
+  const endGame=(result)=>{
+    let best=null,isNewBest=false;
+    if(config.mission){best=progress[config.mission.id]||null;const stars=starsFor(result);
+      if(stars>0&&(!best||stars>best.stars||(stars===best.stars&&result.timeLeft>best.timeLeft))){isNewBest=true;const p={...progress,[config.mission.id]:{stars,timeLeft:result.timeLeft}};setProgress(p);STORE.set("progress",p);}}
+    setGameResult({result,best,isNewBest});setScreen("result");};
+  const nextMission=config&&config.mission?MISSIONS[config.mission.num]:null; /* num is 1-based, so this is the one after */
+  const openManualFor=(cfg)=>{setManualOnly(cfg.mission?{label:`MISSION ${cfg.mission.num}`,ids:cfg.mission.modules}:{label:"THIS BOMB",ids:[...new Set(cfg.modules.map(m=>m.baseId))]});setScreen("manual-only");};
   return (<div className="app">
     <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&family=Share+Tech+Mono&family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet"/>
     <style>{`
@@ -704,7 +904,7 @@ function App(){
       .module-toggles{display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:0.6rem;}
       .module-toggle{padding:0.75rem;background:#1a1a2e;border:1px solid #333;color:#666;cursor:pointer;transition:all 0.2s;display:flex;flex-direction:column;align-items:center;gap:0.2rem;font-family:'Share Tech Mono',monospace;font-size:0.8rem;}
       .module-toggle.active{border-color:#4caf50;color:#4caf50;background:rgba(76,175,80,0.1);}.module-toggle:hover:not(.active){border-color:#666;color:#aaa;}
-      .toggle-name{font-size:0.8rem;}.toggle-diff{font-size:0.65rem;opacity:0.7;}
+      .module-toggle.locked{cursor:not-allowed;}.pool-note{color:#888;font-size:0.8rem;margin:-0.25rem 0 0.75rem;}.toggle-name{font-size:0.8rem;}.toggle-diff{font-size:0.65rem;opacity:0.7;}
       .start-game-btn{width:100%;padding:1.25rem;font-family:'Orbitron',sans-serif;font-size:1.2rem;background:linear-gradient(135deg,#ff4444,#ff8800);border:none;color:#000;cursor:pointer;transition:all 0.3s;letter-spacing:2px;margin-top:1rem;font-weight:bold;}
       .start-game-btn:hover:not(:disabled){transform:scale(1.02);box-shadow:0 0 30px rgba(255,100,0,0.5);}.start-game-btn:disabled{opacity:0.5;cursor:not-allowed;}
       .warning-text{color:#ff8800;text-align:center;margin-top:1rem;font-size:0.9rem;}
@@ -722,7 +922,7 @@ function App(){
       .timer-display{font-family:'Orbitron',sans-serif;font-size:2.5rem;font-weight:700;letter-spacing:2px;}
       .serial-display{font-size:0.9rem;color:#888;}.serial-label{margin-right:0.5rem;}
       .serial-value{font-family:'JetBrains Mono',monospace;font-size:1.1rem;color:#ffcc00;letter-spacing:2px;}
-      .strikes-display{display:flex;gap:0.5rem;font-size:1.5rem;}.strike-indicator{opacity:0.3;transition:all 0.3s;}.strike-indicator.active{opacity:1;animation:strikeFlash 0.5s ease;}
+      .strikes-display{display:flex;gap:0.5rem;font-size:1.5rem;align-items:center;}.speed-badge{font-size:0.9rem;margin-left:0.6rem;color:#ff8800;text-shadow:none;letter-spacing:0;vertical-align:middle;}.mute-btn{margin-left:0.75rem;background:transparent;border:1px solid #444;border-radius:6px;font-size:1.1rem;padding:0.2rem 0.45rem;cursor:pointer;}.strike-indicator{opacity:0.3;transition:all 0.3s;}.strike-indicator.active{opacity:1;animation:strikeFlash 0.5s ease;}
       @keyframes strikeFlash{0%,100%{transform:scale(1);}50%{transform:scale(1.3);}}
       .modules-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:1.25rem;margin-bottom:1.5rem;}
       .module-wrapper{background:#1a1a2e;border:2px solid #333;border-radius:8px;position:relative;overflow:hidden;transition:all 0.3s;}.module-wrapper.success{border-color:#4caf50;background:rgba(76,175,80,0.1);}
@@ -730,9 +930,9 @@ function App(){
       .status-icon{display:inline-flex;align-items:center;justify-content:center;width:32px;height:32px;background:#4caf50;color:#fff;border-radius:50%;font-size:1.2rem;font-weight:bold;}
       .status-dot{display:inline-block;width:12px;height:12px;background:#ffcc00;border-radius:50%;animation:pulse 1.5s ease-in-out infinite;}
       @keyframes pulse{0%,100%{opacity:1;transform:scale(1);}50%{opacity:0.5;transform:scale(0.8);}}
-      .module-complete{padding:3rem;text-align:center;color:#4caf50;font-family:'Orbitron',sans-serif;font-size:1rem;display:flex;flex-direction:column;align-items:center;gap:0.75rem;}.complete-icon{font-size:2.5rem;}
+      .module-complete{position:absolute;inset:0;z-index:5;background:rgba(76,175,80,0.28);display:flex;align-items:center;justify-content:center;cursor:default;}.complete-badge{display:flex;align-items:center;gap:0.5rem;padding:0.4rem 0.9rem;background:rgba(10,21,32,0.85);border:2px solid #4caf50;border-radius:6px;color:#4caf50;font-family:'Orbitron',sans-serif;font-size:0.9rem;}.complete-icon{font-size:1.3rem;}
       .module-content{padding:1.25rem;}.module-content h3{font-family:'Orbitron',sans-serif;color:#ffcc00;margin-bottom:0.6rem;font-size:0.9rem;}.module-hint{color:#666;font-size:0.75rem;margin-bottom:0.75rem;}
-      .wire-container{display:flex;flex-direction:column;gap:0.8rem;flex:1;justify-content:center;padding:0.5rem 0;}.wire{height:0.6rem;border-radius:2px;border:2px solid transparent;cursor:pointer;transition:all 0.3s;display:flex;align-items:center;justify-content:center;}.wire:hover:not(:disabled):not(.cut){transform:scaleY(1.3);filter:brightness(1.2);}.wire.cut{border-style:dashed;opacity:0.3;cursor:default;}.wire-cut-text{color:#555;font-size:0.5rem;}
+      .wire-container{display:flex;flex-direction:column;gap:0.3rem;align-self:stretch;width:100%;box-sizing:border-box;flex:1;justify-content:center;padding:0.5rem;background:#4a4f5c;border:2px solid #333;border-radius:6px;}.wire{display:block;width:100%;padding:0;background:none;border:none;cursor:pointer;}.wire img{width:100%;}.wire:hover:not(:disabled) img{filter:brightness(1.15) drop-shadow(0 0 2px #0ff);}.wire:disabled{cursor:default;}
       .options-grid{display:grid;grid-template-columns:1fr 1fr;gap:0.5rem;}
       .option-btn{padding:0.6rem;background:#1a1a2e;border:1px solid #333;color:#0ff;cursor:pointer;border-radius:4px;font-family:'Share Tech Mono',monospace;font-size:0.8rem;font-weight:bold;transition:all 0.2s;}.option-btn:hover:not(:disabled):not(.correct){border-color:#0ff;background:rgba(0,255,255,0.05);}.option-btn.correct{background:#4caf50;border-color:#4caf50;color:#fff;}.option-btn:disabled{cursor:default;}
       .symbol-btn{padding:0.8rem;font-size:1.8rem;background:#1a1a2e;border:1px solid #333;border-radius:4px;cursor:pointer;transition:all 0.2s;}.symbol-btn:hover:not(:disabled):not(.correct){border-color:#0ff;}.symbol-btn.correct{background:#4caf50;border-color:#4caf50;}.symbol-btn:disabled{cursor:default;}
@@ -743,7 +943,7 @@ function App(){
       .switch-grid{display:grid;grid-template-columns:1fr 1fr;gap:0.5rem;}
       .switch-btn{padding:0.75rem;border:3px solid transparent;border-radius:8px;cursor:pointer;display:flex;flex-direction:column;align-items:center;gap:0.25rem;transition:all 0.2s;}.switch-btn.solved{border-color:#4caf50;opacity:0.7;cursor:default;}.switch-btn:hover:not(.solved){transform:scale(1.05);}
       .switch-arrow{font-size:1.5rem;}.switch-dir-label{font-size:0.6rem;text-transform:uppercase;}
-      .monster-display{background:#0a1520;border-radius:8px;padding:1rem;text-align:center;margin-bottom:0.75rem;border:2px solid;}.monster-eyes{font-size:1.8rem;margin-bottom:0.25rem;}.monster-body{font-size:2rem;}.monster-desc{font-size:0.65rem;color:#888;margin-top:0.25rem;}
+      .monster-display{background:#0a1520;border-radius:8px;padding:0.5rem;text-align:center;margin-bottom:0.75rem;border:2px solid #333;}.pixel-art{image-rendering:pixelated;max-width:100%;height:auto;display:block;margin:0 auto;}
       .clock-btn{padding:0.3rem 0.8rem;background:#1a2a3a;border:1px solid #0ff3;color:#0ff;cursor:pointer;border-radius:4px;font-family:'Share Tech Mono',monospace;transition:all 0.2s;}.clock-btn:hover{background:rgba(0,255,255,0.1);}
       .submit-btn{width:100%;padding:0.6rem;background:rgba(0,255,255,0.1);border:1px solid #0ff;color:#0ff;border-radius:4px;cursor:pointer;font-family:'Orbitron',sans-serif;font-weight:bold;font-size:0.85rem;transition:all 0.2s;}.submit-btn:hover:not(:disabled){background:rgba(0,255,255,0.2);}.submit-btn.correct{background:#4caf50;border-color:#4caf50;color:#fff;cursor:default;}
       .manual-page-content{padding:2rem;max-width:600px;margin:0 auto;font-family:Georgia,'Times New Roman',serif;color:#222;background:#f5f0e6;min-height:100vh;line-height:1.6;}
@@ -765,17 +965,47 @@ function App(){
       .play-again-btn{padding:1rem 3rem;border:none;font-family:'Orbitron',sans-serif;font-size:1.1rem;font-weight:bold;cursor:pointer;letter-spacing:2px;transition:all 0.3s;z-index:1;border-radius:4px;}
       .play-again-btn.win{background:#4caf50;color:#000;}.play-again-btn.win:hover{box-shadow:0 0 30px rgba(76,175,80,0.5);transform:scale(1.05);}
       .play-again-btn.lose{background:#ff4444;color:#fff;}.play-again-btn.lose:hover{box-shadow:0 0 30px rgba(255,68,68,0.5);transform:scale(1.05);}
+      .result-team{font-family:'Orbitron',sans-serif;color:#ffcc00;letter-spacing:2px;margin-bottom:0.75rem;z-index:1;}
+      .stars-row{font-size:4rem;line-height:1;margin:0.25rem 0 0.5rem;z-index:1;}.star{color:#333;display:inline-block;margin:0 0.2rem;}.star.on{color:#333;animation:starPop 0.5s ease forwards;}
+      @keyframes starPop{0%{transform:scale(0.3);color:#333;}60%{transform:scale(1.5);color:#ffe066;}100%{transform:scale(1);color:#ffcc00;text-shadow:0 0 25px rgba(255,204,0,0.7);}}
+      .new-best{font-family:'Orbitron',sans-serif;color:#ffcc00;z-index:1;margin-bottom:0.5rem;animation:titlePulse 1s ease-in-out infinite;}.old-best{color:#888;z-index:1;margin-bottom:0.5rem;}
+      .result-card{z-index:1;background:rgba(20,20,35,0.9);border:1px solid #333;border-radius:8px;padding:0.75rem 1.25rem;margin:0.4rem 0;width:min(440px,92vw);text-align:left;}
+      .check-row,.mod-row{display:flex;gap:0.6rem;align-items:center;padding:0.25rem 0;color:#777;}.check-row.ok{color:#eee;}.check-row em{color:#888;font-style:normal;font-size:0.85em;}
+      .mod-row{color:#ddd;}.mod-name{flex:1;}.mod-x{font-size:0.8rem;}
+      .result-buttons{display:flex;flex-direction:column;gap:0.6rem;margin-top:1rem;z-index:1;width:min(440px,92vw);}
+      .play-again-btn.plain{background:#2a2a45;color:#eee;border:1px solid #555;}.play-again-btn.ghost{background:transparent;color:#888;border:1px solid #444;padding:0.6rem;font-size:0.9rem;}
+      .team-btn{font-family:'Orbitron',sans-serif;font-size:1rem;padding:0.6rem 1rem;background:rgba(255,204,0,0.08);border:1px dashed #ffcc00;color:#ffcc00;cursor:pointer;letter-spacing:1px;}.team-btn span{display:block;font-family:'Share Tech Mono',monospace;font-size:0.65rem;color:#998;letter-spacing:0;margin-top:0.15rem;}
+      .menu-btn.tertiary{border-color:#666;color:#888;font-size:0.85rem;padding:0.6rem 2rem;}.menu-btn.tertiary:hover{background:#666;color:#000;}
+      .team-tag{color:#ffcc00;font-family:'Orbitron',sans-serif;font-size:0.8rem;margin-bottom:0.2rem;letter-spacing:1px;}
+      .mission-total{text-align:center;color:#ffcc00;font-family:'Orbitron',sans-serif;font-size:1.3rem;margin:-1rem 0 1.25rem;}
+      .mission-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:0.75rem;}
+      .mission-card{position:relative;display:flex;flex-direction:column;align-items:center;gap:0.25rem;padding:0.9rem 0.5rem;background:#1a1a2e;border:2px solid #333;border-radius:8px;color:#ccc;cursor:pointer;font-family:'Share Tech Mono',monospace;transition:all 0.2s;}
+      .mission-card:hover{border-color:#888;transform:translateY(-2px);}.mission-card.done{border-color:#4caf50;}.mission-card.next{border-color:#ffcc00;box-shadow:0 0 18px rgba(255,204,0,0.25);}
+      .mission-num{font-family:'Orbitron',sans-serif;font-size:1.8rem;font-weight:900;color:#ff4444;}.mission-name{font-size:0.95rem;color:#eee;}
+      .mission-stars{color:#ffcc00;font-size:1.2rem;letter-spacing:2px;}.mission-stars i{color:#333;font-style:normal;}.mission-meta{font-size:0.65rem;color:#777;}
+      .mission-next{position:absolute;top:-0.6rem;right:-0.4rem;background:#ffcc00;color:#000;font-size:0.6rem;font-weight:bold;padding:0.1rem 0.4rem;border-radius:4px;}
+      .locked-module{min-height:180px;display:flex;align-items:center;justify-content:center;border-style:dashed;background:repeating-linear-gradient(45deg,#16162a,#16162a 12px,#1c1c33 12px,#1c1c33 24px);}
+      .lock-face{text-align:center;color:#888;padding:1rem;}.lock-icon{font-size:3rem;}.lock-title{font-family:'Orbitron',sans-serif;color:#ffcc00;margin:0.4rem 0 0.2rem;letter-spacing:2px;}.lock-sub{font-size:0.8rem;}
+      .module-wrapper.finale:not(.success){border-color:#ff8800;box-shadow:0 0 22px rgba(255,136,0,0.35);animation:finaleIn 0.6s ease;}
+      @keyframes finaleIn{0%{transform:scale(0.92);}60%{transform:scale(1.04);}100%{transform:scale(1);}}
+      .test-tools{display:flex;gap:0.3rem;padding:0.25rem;background:#3a3200;}.test-tools button{flex:1;font-size:0.65rem;padding:0.2rem;background:#f1c40f;border:none;cursor:pointer;font-family:'Share Tech Mono',monospace;}
+      .finale-tag{background:#ff8800;color:#000;font-family:'Orbitron',sans-serif;font-size:0.7rem;font-weight:bold;text-align:center;padding:0.2rem;letter-spacing:2px;}
+      .manual-filter{display:flex;flex-wrap:wrap;gap:0.35rem;align-items:center;justify-content:center;padding:3.5rem 1rem 0.5rem;font-size:0.8rem;color:#aaa;}
+      .manual-filter button{min-width:2.2rem;padding:0.4rem 0.6rem;background:#1a1a2e;border:1px solid #444;color:#aaa;cursor:pointer;font-family:'Share Tech Mono',monospace;border-radius:4px;}.manual-filter button.active{background:#f1c40f;border-color:#f1c40f;color:#000;font-weight:bold;}
+      .manual-filter em{flex-basis:100%;text-align:center;font-style:normal;color:#f1c40f;}
       .confetti-bg{position:absolute;inset:0;background:radial-gradient(circle,rgba(76,175,80,0.15) 0%,transparent 70%);animation:bgPulse 2s ease-in-out infinite;}
       .explosion-bg{position:absolute;inset:0;background:radial-gradient(circle,rgba(255,100,0,0.2) 0%,transparent 70%);animation:bgPulse 2s ease-in-out infinite;}
       @keyframes bgPulse{0%,100%{transform:scale(1);opacity:0.5;}50%{transform:scale(1.3);opacity:0.3;}}
       @media(max-width:768px){.game-title{font-size:2rem;}.bomb-icon{font-size:5rem;}.bomb-header{flex-direction:column;text-align:center;}.timer-display{font-size:2rem;}.modules-grid{grid-template-columns:1fr;}.manual-overlay{width:100%;}.menu-btn{padding:0.8rem 2rem;font-size:0.9rem;}.settings-panel{margin:1rem;padding:1.5rem;}}
     `}</style>
-    {screen==="menu"&&(<div className="menu-screen"><div className="bomb-icon">💣</div><h1 className="game-title">ESL BOMB SQUAD</h1><p className="game-subtitle">Communication Under Pressure</p><div className="menu-buttons"><button className="menu-btn primary" onClick={()=>setScreen("settings")}>🎮 DEFUSER MODE</button><button className="menu-btn secondary" onClick={()=>setScreen("manual-only")}>📖 EXPERT MANUAL</button></div></div>)}
+    {screen==="menu"&&(<div className="menu-screen"><div className="bomb-icon">💣</div><h1 className="game-title">ESL BOMB SQUAD</h1><p className="game-subtitle">Communication Under Pressure</p>{TEST_MODE&&<p style={{color:"#f1c40f",marginTop:"-2rem",marginBottom:"2rem",letterSpacing:"3px"}}>TEST MODE</p>}<div className="menu-buttons"><button className="team-btn" onClick={nextTeam}>TEAM: {team[0]} {team[1]} <span>tap to change</span></button><button className="menu-btn primary" onClick={()=>setScreen("missions")}>🎯 MISSIONS</button><button className="menu-btn secondary" onClick={()=>{setManualOnly(null);setScreen("manual-only");}}>📖 EXPERT MANUAL</button><button className="menu-btn tertiary" onClick={()=>setScreen("settings")}>🛠 FREE PLAY</button></div></div>)}
+    {screen==="missions"&&(<div><button className="back-btn" onClick={()=>setScreen("menu")}>← Back</button><MissionSelect progress={progress} onPick={m=>startGame({mission:m})}/></div>)}
     {screen==="settings"&&(<div><button className="back-btn" onClick={()=>setScreen("menu")}>← Back</button><SettingsPanel onStartGame={startGame}/></div>)}
-    {screen==="playing"&&config&&(<div className="game-layout"><button className="back-btn" onClick={reset}>← Quit</button><button className={`manual-toggle ${showManual?"active":""}`} onClick={()=>setShowManual(!showManual)}>{showManual?"✕ Close Manual":"📖 Manual"}</button><BombComponent key={gameKey} config={config} onGameEnd={endGame}/><div className={`manual-overlay ${showManual?"visible":""}`}><ExpertManual/></div></div>)}
-    {screen==="manual-only"&&(<div><button className="back-btn" onClick={()=>setScreen("menu")}>← Back</button><ExpertManual/></div>)}
-    {screen==="win"&&<WinScreen timeLeft={gameResult?.detail} onPlayAgain={reset}/>}
-    {screen==="lose"&&<LoseScreen reason={gameResult?.detail} onPlayAgain={reset}/>}
+    {screen==="playing"&&config&&(<div className="game-layout"><button className="back-btn" onClick={reset}>← Quit</button>{TEST_MODE&&<button className={`manual-toggle ${showManual?"active":""}`} onClick={()=>setShowManual(!showManual)}>{showManual?"✕ Close Manual":"📖 Manual (TEST)"}</button>}<BombComponent key={gameKey} config={config} team={team} onGameEnd={endGame}/>{TEST_MODE&&<div className={`manual-overlay ${showManual?"visible":""}`}><ExpertManual only={[...new Set(config.modules.map(m=>m.baseId))]}/></div>}</div>)}
+    {screen==="manual-only"&&(<div><button className="back-btn" onClick={()=>setScreen("menu")}>← Back</button>
+      <div className="manual-filter"><span>SHOW:</span><button className={!manualOnly?"active":""} onClick={()=>setManualOnly(null)}>ALL</button>{manualOnly&&!manualOnly.label.startsWith("MISSION")&&<button className="active">{manualOnly.label}</button>}{MISSIONS.map(m=>(<button key={m.id} className={manualOnly&&manualOnly.label===`MISSION ${m.num}`?"active":""} onClick={()=>setManualOnly({label:`MISSION ${m.num}`,ids:m.modules})}>{m.num}</button>))}{manualOnly&&manualOnly.label.startsWith("MISSION")&&<em>{manualOnly.label}: {MISSIONS[Number(manualOnly.label.slice(8))-1].name}</em>}</div>
+      <ExpertManual key={manualOnly?manualOnly.label:"all"} only={manualOnly?manualOnly.ids:null}/></div>)}
+    {screen==="result"&&gameResult&&config&&<ResultsScreen result={gameResult.result} best={gameResult.best} isNewBest={gameResult.isNewBest} config={config} team={team} onReplay={()=>{SFX.unlock();startGame(config.spec);}} onSwap={()=>openManualFor(config)} onNext={nextMission?()=>startGame({mission:nextMission}):null} onMenu={reset}/>}
   </div>);
 }
 

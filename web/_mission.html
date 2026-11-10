@@ -1,0 +1,19 @@
+<!DOCTYPE html><html><body style="margin:0"><iframe id="f" src="index.html?test" style="width:420px;height:6000px;border:0"></iframe>
+<script>
+const want=["Mood Plugs","Gift Shop","Monster Clinic","Animal Race Day","Guess Who","Monster Lab"];
+const f=document.getElementById("f"), d=()=>f.contentDocument, btn=(t)=>[...d().querySelectorAll("button")].find(b=>b.textContent.includes(t));
+f.contentWindow.onerror=null;
+f.onload=()=>{f.contentWindow.addEventListener("error",e=>document.title="ERR "+e.message);setTimeout(()=>{btn("FREE PLAY").click();setTimeout(()=>{
+  /* the pool can't go below the module count: drop the count to 1, add what we want, remove the leftover, raise the count */
+  const sl=d().querySelector(".module-slider"), set=Object.getOwnPropertyDescriptor(f.contentWindow.HTMLInputElement.prototype,"value").set;
+  set.call(sl,"1"); sl.dispatchEvent(new Event("input",{bubbles:true}));
+  setTimeout(()=>{for(const w of want){const x=btn(w); if(!x.classList.contains("active")) x.click();}
+    for(const x of d().querySelectorAll(".module-toggle.active")) if(!want.some(w=>x.textContent.includes(w))) x.click();
+    set.call(sl,String(want.length)); sl.dispatchEvent(new Event("input",{bubbles:true}));
+    setTimeout(()=>{btn("START MISSION").click(); setTimeout(()=>{
+      const heads=[...d().querySelectorAll(".module-wrapper h3")].map(h=>h.textContent);
+      btn("Manual").click(); setTimeout(()=>{
+        const secs=[...d().querySelectorAll(".manual-section h2")].map(h=>h.textContent.replace(/[▶▼]/g,"").trim());
+        const s=[...d().querySelectorAll(".manual-section h2")].find(h=>h.textContent.includes("Lunch Rush")); s.click();
+        setTimeout(()=>{ document.title=(document.title.startsWith("ERR")?document.title+" | ":"")+"MODULES "+heads.length+": "+heads.join(" / ")+" || MANUAL "+secs.length+" sections, Lunch Rush input: "+!!d().querySelector(".manual-overlay input"); },300);},300);},800);},200);},200);},300);},2500);};
+</script></body></html>

@@ -1,0 +1,12 @@
+<!DOCTYPE html><html><body style="margin:0"><iframe id="f" src="index.html" style="width:420px;height:2400px;border:0"></iframe>
+<script>
+// _play.html?pick=Guess%20Who,Family%20Photo  -> starts a mission with exactly those modules.
+const want=(new URLSearchParams(location.search).get("pick")||"").split(",");
+const f=document.getElementById("f"), d=()=>f.contentDocument, btn=(t)=>[...d().querySelectorAll("button")].find(b=>b.textContent.includes(t));
+f.onload=()=>setTimeout(()=>{btn("DEFUSER MODE").click();setTimeout(()=>{
+  for(const b of d().querySelectorAll(".module-toggle.active")) b.click();
+  setTimeout(()=>{for(const w of want) btn(w)&&btn(w).click();
+    const sl=d().querySelector(".module-slider"), set=Object.getOwnPropertyDescriptor(f.contentWindow.HTMLInputElement.prototype,"value").set;
+    set.call(sl,String(want.length)); sl.dispatchEvent(new Event("input",{bubbles:true}));
+    setTimeout(()=>{btn("START MISSION").click(); setTimeout(()=>{const w=d().querySelector(".module-wrapper"); if(w) f.contentWindow.scrollTo(0,w.getBoundingClientRect().top+f.contentWindow.scrollY-10); document.title="READY";},500);},200);},200);},300);},2500);
+</script></body></html>
