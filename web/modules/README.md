@@ -8,7 +8,9 @@ game (`web/index.html`).
 
 1. Write `modules/mXX-name.jsx`, wrapped in `(() => { … })();` so its names don't clash with the game's.
 2. Push `{ id, name, type, difficulty, Component, Manual }` onto `window.EXTRA_MODULES`.
-   - `Component({ serialNumber, onSuccess, onStrike })` is the Defuser's screen.
+   - `Component({ serialNumber, bomb, onSuccess, onStrike })` is the Defuser's screen.
+     `bomb` is `{ color, batteries, sticker: { name, kind } }`: what the bomb looks like (see BOMB FEATURES in
+     `index.html`). A rule can read it instead of the serial; give `bomb` a default, since the test harness doesn't pass one.
    - `Manual()` is its section in the Expert manual.
 3. Add `<script type="text/babel" src="modules/mXX-name.jsx">` to `index.html` (and any new `sprites/*.js`).
 

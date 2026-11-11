@@ -1,6 +1,7 @@
 <!DOCTYPE html><html><body style="margin:0"><iframe id="f" src="index.html?test" style="width:420px;height:6000px;border:0"></iframe>
 <script>
-const want=["Mood Plugs","Gift Shop","Monster Clinic","Animal Race Day","Guess Who","Monster Lab"];
+/* Lunch Rush is in the list because the manual check below opens its section; the test-mode manual only shows this bomb's modules. */
+const want=["Lunch Rush","Mood Plugs","Gift Shop","Monster Clinic","Animal Race Day","Guess Who","Monster Lab"];
 const f=document.getElementById("f"), d=()=>f.contentDocument, btn=(t)=>[...d().querySelectorAll("button")].find(b=>b.textContent.includes(t));
 f.contentWindow.onerror=null;
 f.onload=()=>{f.contentWindow.addEventListener("error",e=>document.title="ERR "+e.message);setTimeout(()=>{btn("FREE PLAY").click();setTimeout(()=>{

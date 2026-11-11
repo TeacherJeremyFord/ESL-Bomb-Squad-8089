@@ -33,7 +33,20 @@
 - [ ] Class leaderboard across devices: needs a server, the devices are not linked today
 - [ ] Mission locks (unlock in order): left open for now, since progress is saved per device and partners swap devices
 - [x] Manual can show only one mission's modules (2026-11-10)
-- [ ] Audit the 16 original modules against the English-lock and information-gap rules
+- [x] Audit the 16 original modules against the English-lock and information-gap rules (2026-11-10).
+  Fixed: Vending Machine and Word Buttons rejected some right answers; Big Button rule order did not match
+  the manual; Switchboard and Combo Lock could be solved by trial and error with no penalty.
+  Also: "mod 4" / "mod 40" taken out of the Monster Lab and Combo Lock manuals (same rules, plain words);
+  Big Button moved to pointer events so one wrong tap on a touch screen is one strike, not two.
+- [ ] Audit findings that need a design decision:
+  - **Crack the Code**: the Expert has no hidden information, so the Defuser can solve it alone.
+  - **Memory, Sliders, Number Keypad**: one tiny fixed rule each. After one play the Defuser knows it
+    and no longer needs the Expert. (Memory also has nothing to remember.)
+  - **Symbol Keypad**: the Expert's table is pictures, so the pair can match them without English.
+  - **Symbol Panel**: "fish" is the animal in a set that also asks for a food; some would call fish a food.
+- [x] Bomb features (color, batteries, sticker) shown as pictures; read by Vending Machine, Big Button
+  and Word Buttons instead of the serial number. Serial now used by 9 of 28 modules (2026-11-10)
+- [x] Fun mode (alarm clock, lights out, bomb quiz), off by default and never saved (2026-11-10)
 
 ## 🎯 Medium Term
 

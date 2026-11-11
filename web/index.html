@@ -51,6 +51,19 @@ const generateSerialNumber = () => {
   const pick = (s) => s[Math.floor(Math.random() * s.length)];
   return `${pick(chars)}${pick(chars)}${pick(nums)}${pick(nums)}${pick(nums)}-${pick(chars)}${pick(nums)}${pick(chars)}${pick(nums)}${pick(nums)}`;
 };
+/* ===== BOMB FEATURES =====
+   Things on the bomb itself that manual rules can point at, besides the serial number:
+   its color, how many batteries it has, and one sticker. The Defuser sees pictures only (no words),
+   so they have to say it in English: "The bomb is green. It has three batteries. There is a cat."
+   Each feature is read by one module: color = Vending Machine, batteries = Big Button, sticker = Word Buttons. */
+const BOMB_COLORS = { red:"#e04848", blue:"#3f6fd8", green:"#3f9e45", yellow:"#f7d843", purple:"#a65bd6" };
+const BOMB_STICKERS = [...["cat","dog","bird","rabbit","monkey","tiger"].map(name=>({name,kind:"animal"})), ...["apple","banana","cake","egg","pizza","bread"].map(name=>({name,kind:"food"}))];
+const makeBomb = () => { const pick=(a)=>a[Math.floor(Math.random()*a.length)]; return { color:pick(Object.keys(BOMB_COLORS)), batteries:1+Math.floor(Math.random()*4), sticker:pick(BOMB_STICKERS) }; };
+const DEFAULT_BOMB = { color:"red", batteries:1, sticker:BOMB_STICKERS[0] }; /* for a module drawn outside a bomb (test pages) */
+const stickerSrc = (st) => st.kind==="animal" ? PX.animal(st.name) : PX.food(st.name);
+const batterySrc = (() => { let src=null; return () => src || (src = PX.render(8, 14, [{ sprite: PX.sprite("battery", ["..gggg..", ".yyyyyy.", ".yYYYYy.", ".GGGGGG.", ".GGGGGG.", ".GGWGGG.", ".GWWWGG.", ".GGWGGG.", ".GGGGGG.", ".GGGGGG.", ".GGGGGG.", ".GGGGGG.", ".GGGGGG.", "..GGGG.."]) }])); })();
+const NUMBER_WORDS = ["zero","one","two","three","four","five"];
+
 const getLastDigit = (sn) => parseInt(sn.replace(/[^0-9]/g, "").slice(-1)) || 0;
 const getFirstDigit = (sn) => parseInt(sn.replace(/[^0-9]/g, "")[0]) || 0;
 const getLastLetter = (sn) => sn.split("").filter(c => /[A-Z]/i.test(c)).pop()?.toUpperCase() || "A";
@@ -164,22 +177,18 @@ const GuessWhoModule = ({ serialNumber, onSuccess, onStrike }) => {
 
 
 /* VENDING MACHINE */
-const VendingMachineModule = ({ serialNumber, onSuccess, onStrike }) => {
+const VendingMachineModule = ({ bomb=DEFAULT_BOMB, onSuccess, onStrike }) => {
   const allItems=[{name:"Apple",cat:"fruit",price:150},{name:"Banana",cat:"fruit",price:100},{name:"Cookie",cat:"snack",price:175},{name:"Chips",cat:"snack",price:200},{name:"Soda",cat:"drink",price:125},{name:"Water",cat:"drink",price:75},{name:"Carrot",cat:"vegetable",price:150},{name:"Candy",cat:"snack",price:50}];
   const [items] = useState(()=>{const s=[...allItems].sort(()=>Math.random()-0.5);return s.slice(0,4);});
-  const ld = getLastDigit(serialNumber);
-  const getCorrect = () => {
-    if(ld<=1)return items.reduce((a,b)=>a.price<b.price?a:b);
-    if(ld<=3)return items.reduce((a,b)=>a.price>b.price?a:b);
-    if(ld<=5){const r=items.filter(i=>i.price>100&&i.price<200);return r[0]||items.reduce((a,b)=>a.price<b.price?a:b);}
-    if(ld<=7){const f=items.filter(i=>i.cat==="fruit"||i.cat==="vegetable");return f[0]||items[0];}
-    const fifties=items.filter(i=>i.price%100===50);return fifties[0]||items.reduce((a,b)=>a.price<b.price?a:b);
-  };
-  const correct = getCorrect();
+  // The bomb's color picks the rule. Every item that fits the rule is right; if none fits, the cheapest is (the manual says so).
+  const prices=items.map(i=>i.price), cheapest=items.filter(i=>i.price===Math.min(...prices));
+  const byColor={red:cheapest, blue:items.filter(i=>i.price===Math.max(...prices)), green:items.filter(i=>i.price>100&&i.price<200), yellow:items.filter(i=>i.cat!=="drink"), purple:items.filter(i=>i.price%100===50)};
+  const good=(byColor[bomb.color]||[]).length?byColor[bomb.color]:cheapest;
+  const isRight=(item)=>good.includes(item);
   const [solved,setSolved] = useState(false);
   const fmt = (p)=>`$${(p/100).toFixed(2)}`;
   return (<div className="module-content"><h3>🏭 VENDING MACHINE</h3><p className="module-hint">Buy the correct item!</p>
-    <div className="options-grid">{items.map((item,i)=>(<button key={i} onClick={()=>{if(solved)return;if(item.name===correct.name){setSolved(true);onSuccess();}else onStrike();}} disabled={solved} className={`option-btn ${solved&&item.name===correct.name?"correct":""}`} style={{display:"flex",flexDirection:"column",alignItems:"center",padding:"0.6rem"}}>
+    <div className="options-grid">{items.map((item,i)=>(<button key={i} onClick={()=>{if(solved)return;if(isRight(item)){setSolved(item.name);onSuccess();}else onStrike();}} disabled={!!solved} className={`option-btn ${solved===item.name?"correct":""}`} style={{display:"flex",flexDirection:"column",alignItems:"center",padding:"0.6rem"}}>
       <img className="pixel-art" alt="" src={PX.food(item.name.toLowerCase())} width={48} height={48}/><span style={{fontSize:"0.7rem"}}>{item.name}</span><span style={{fontSize:"0.65rem",color:"#f1c40f"}}>{fmt(item.price)}</span></button>))}</div></div>);
 };
 
@@ -219,31 +228,35 @@ const NumberKeypadModule = ({ serialNumber, onSuccess, onStrike }) => {
 };
 
 /* BIG BUTTON */
-const BigButtonModule = ({ serialNumber, onSuccess, onStrike }) => {
+const BigButtonModule = ({ bomb=DEFAULT_BOMB, onSuccess, onStrike }) => {
   const btnColors=["red","blue","yellow","white"]; const btnWords=["PRESS","HOLD","PUSH","CLICK"];
   const colorHex={red:"#e74c3c",blue:"#3498db",yellow:"#f1c40f",white:"#ecf0f1"};
   const [btnColor] = useState(()=>btnColors[Math.floor(Math.random()*4)]);
   const [btnWord] = useState(()=>btnWords[Math.floor(Math.random()*4)]);
-  const ld = getLastDigit(serialNumber);
-  // Rule: blue+HOLD=hold, red+PRESS=press, white=hold, otherwise press
-  const shouldHold = (btnColor==="blue"&&btnWord==="HOLD")||(btnColor==="white")||ld>7;
+  // Same order as the manual, first match wins: blue+HOLD = hold, red+PRESS = press, white = hold, 3 or 4 batteries = hold, otherwise press.
+  const shouldHold = (btnColor==="blue"&&btnWord==="HOLD")?true:(btnColor==="red"&&btnWord==="PRESS")?false:btnColor==="white"?true:bomb.batteries>=3;
   const [holding,setHolding] = useState(false); const [holdTime,setHoldTime] = useState(0);
   const [solved,setSolved] = useState(false); const timerRef = useRef(null);
-  const startHold = () => {
-    if(solved)return; setHolding(true); setHoldTime(0);
-    timerRef.current = setInterval(()=>setHoldTime(t=>t+100),100);
+  // Pointer events, not mouse + touch: on a touch screen a tap fires both, which counted one wrong tap as two strikes.
+  // The press is timed with a clock (downAt); holdTime is only for the on-screen counter.
+  const downAt = useRef(null);
+  const startHold = (e) => {
+    if(solved||downAt.current!==null)return; downAt.current=Date.now(); setHolding(true); setHoldTime(0);
+    try{e.currentTarget.setPointerCapture(e.pointerId);}catch(err){}
+    timerRef.current = setInterval(()=>setHoldTime(Date.now()-downAt.current),100);
   };
   const endHold = () => {
-    if(solved)return; clearInterval(timerRef.current); setHolding(false);
-    if(shouldHold&&holdTime>=2000){setSolved(true);onSuccess();}
-    else if(!shouldHold&&holdTime<500){setSolved(true);onSuccess();}
+    if(solved||downAt.current===null)return; const held=Date.now()-downAt.current; downAt.current=null;
+    clearInterval(timerRef.current); setHolding(false);
+    if(shouldHold&&held>=2000){setSolved(true);onSuccess();}
+    else if(!shouldHold&&held<500){setSolved(true);onSuccess();}
     else{onStrike();setHoldTime(0);}
   };
   useEffect(()=>()=>clearInterval(timerRef.current),[]);
   return (<div className="module-content"><h3>🔴 BIG BUTTON</h3><p className="module-hint">Press or hold?</p>
     <div style={{display:"flex",flexDirection:"column",alignItems:"center",gap:"0.75rem"}}>
-      <button onMouseDown={startHold} onMouseUp={endHold} onTouchStart={startHold} onTouchEnd={endHold} disabled={solved}
-        style={{width:"120px",height:"120px",borderRadius:"50%",border:"6px solid #333",background:colorHex[btnColor],cursor:solved?"default":"pointer",fontSize:"1rem",fontFamily:"'Orbitron',sans-serif",fontWeight:"bold",color:btnColor==="yellow"||btnColor==="white"?"#333":"#fff",transform:holding?"scale(0.95)":"scale(1)",boxShadow:holding?"0 4px 10px rgba(0,0,0,0.4)":"0 8px 20px rgba(0,0,0,0.4)",transition:"all 0.2s"}}>{btnWord}</button>
+      <button onPointerDown={startHold} onPointerUp={endHold} onPointerCancel={endHold} onContextMenu={e=>e.preventDefault()} disabled={solved}
+        style={{touchAction:"none",userSelect:"none",WebkitUserSelect:"none",WebkitTouchCallout:"none",width:"120px",height:"120px",borderRadius:"50%",border:"6px solid #333",background:colorHex[btnColor],cursor:solved?"default":"pointer",fontSize:"1rem",fontFamily:"'Orbitron',sans-serif",fontWeight:"bold",color:btnColor==="yellow"||btnColor==="white"?"#333":"#fff",transform:holding?"scale(0.95)":"scale(1)",boxShadow:holding?"0 4px 10px rgba(0,0,0,0.4)":"0 8px 20px rgba(0,0,0,0.4)",transition:"all 0.2s"}}>{btnWord}</button>
       {holding&&<div style={{background:shouldHold?"#3498db":"#e74c3c",padding:"0.3rem 1rem",borderRadius:"4px",fontSize:"0.8rem",color:"#fff"}}>{(holdTime/1000).toFixed(1)}s</div>}
       {solved&&<div style={{color:"#4caf50",fontFamily:"'Orbitron',sans-serif"}}>✓</div>}
     </div></div>);
@@ -311,15 +324,15 @@ const CrackTheCodeModule = ({ serialNumber, onSuccess, onStrike }) => {
 };
 
 /* WORD BUTTONS */
-const WordButtonsModule = ({ serialNumber, onSuccess, onStrike }) => {
+const WordButtonsModule = ({ bomb=DEFAULT_BOMB, onSuccess, onStrike }) => {
   const wordSets=[["HOT","COLD","BIG","FAST"],["HAPPY","SAD","ANGRY","CALM"],["LIGHT","HEAVY","SOFT","HARD"],["BEAUTIFUL","UGLY","TALL","SHORT"]];
   const [words] = useState(()=>wordSets[Math.floor(Math.random()*wordSets.length)]);
-  const code = getLastLetter(serialNumber).charCodeAt(0);
-  const findLongest = code<=74||code>79;
-  const correct = findLongest?words.reduce((a,b)=>a.length>=b.length?a:b):words.reduce((a,b)=>a.length<=b.length?a:b);
+  // Animal sticker = the word with the MOST letters, food sticker = the FEWEST. Words that tie are all right.
+  const lens=words.map(w=>w.length), want=bomb.sticker.kind==="animal"?Math.max(...lens):Math.min(...lens);
+  const isRight=(w)=>w.length===want;
   const [solved,setSolved] = useState(false);
   return (<div className="module-content"><h3>📝 WORD BUTTONS</h3><p className="module-hint">Press the correct word</p>
-    <div className="options-grid">{words.map(w=>(<button key={w} onClick={()=>{if(solved)return;if(w===correct){setSolved(true);onSuccess();}else onStrike();}} disabled={solved} className={`option-btn ${solved&&w===correct?"correct":""}`}>{w}</button>))}</div></div>);
+    <div className="options-grid">{words.map(w=>(<button key={w} onClick={()=>{if(solved)return;if(isRight(w)){setSolved(w);onSuccess();}else onStrike();}} disabled={!!solved} className={`option-btn ${solved===w?"correct":""}`}>{w}</button>))}</div></div>);
 };
 
 /* MEMORY */
@@ -363,16 +376,16 @@ const ColorSwitchboardModule = ({ serialNumber, onSuccess, onStrike }) => {
   const directions=["UP","DOWN","LEFT","RIGHT"]; const dirArrows={UP:"↑",DOWN:"↓",LEFT:"←",RIGHT:"→"};
   const switchColors=["red","blue","yellow","green"]; const colorHex={red:"#e74c3c",blue:"#3498db",yellow:"#f1c40f",green:"#2ecc71"};
   const lookup={red:{UP:"RIGHT",DOWN:"LEFT",LEFT:"UP",RIGHT:"DOWN"},blue:{UP:"DOWN",DOWN:"RIGHT",LEFT:"LEFT",RIGHT:"UP"},yellow:{UP:"LEFT",DOWN:"RIGHT",LEFT:"DOWN",RIGHT:"UP"},green:{UP:"UP",DOWN:"DOWN",LEFT:"LEFT",RIGHT:"RIGHT"}};
-  const [switches,setSwitches] = useState(()=>Array.from({length:4},()=>{const c=switchColors[Math.floor(Math.random()*4)];const d=directions[Math.floor(Math.random()*4)];return{color:c,current:d,target:lookup[c][d],solved:false};}));
-  const cycle = (idx) => {
-    if(switches[idx].solved)return; const ns=[...switches];const sw={...ns[idx]};
-    sw.current=directions[(directions.indexOf(sw.current)+1)%4];if(sw.current===sw.target)sw.solved=true;ns[idx]=sw;setSwitches(ns);
-    if(ns.every(s=>s.solved))onSuccess();
-  };
+  const [switches,setSwitches] = useState(()=>Array.from({length:4},()=>{const c=switchColors[Math.floor(Math.random()*4)];const d=directions[Math.floor(Math.random()*4)];return{color:c,current:d,target:lookup[c][d]};}));
+  // A switch gives no sign of being right (it used to lock, so tapping until it locked solved the module alone). SUBMIT checks all four.
+  const [solved,setSolved] = useState(false);
+  const cycle = (idx) => { if(solved)return; setSwitches(sw=>sw.map((x,i)=>i===idx?{...x,current:directions[(directions.indexOf(x.current)+1)%4]}:x)); };
+  const submit = () => { if(solved)return; if(switches.every(x=>x.current===x.target)){setSolved(true);onSuccess();}else onStrike(); };
   return (<div className="module-content"><h3>🎛️ SWITCHBOARD</h3><p className="module-hint">Set each switch correctly</p>
-    <div className="switch-grid">{switches.map((sw,i)=>(<button key={i} onClick={()=>cycle(i)} disabled={sw.solved} className={`switch-btn ${sw.solved?"solved":""}`} style={{background:colorHex[sw.color]}}>
+    <div className="switch-grid">{switches.map((sw,i)=>(<button key={i} onClick={()=>cycle(i)} disabled={solved} className={`switch-btn ${solved?"solved":""}`} style={{background:colorHex[sw.color]}}>
       <span className="switch-arrow" style={{color:sw.color==="yellow"?"#333":"#fff"}}>{dirArrows[sw.current]}</span>
-      <span className="switch-dir-label" style={{color:sw.color==="yellow"?"#555":"#fffa"}}>{sw.current}</span></button>))}</div></div>);
+      <span className="switch-dir-label" style={{color:sw.color==="yellow"?"#555":"#fffa"}}>{sw.current}</span></button>))}</div>
+    <button onClick={submit} disabled={solved} className={`submit-btn ${solved?"correct":""}`} style={{marginTop:"0.75rem"}}>{solved?"✓ CORRECT":"SUBMIT"}</button></div>);
 };
 
 /* WORLD CLOCK */
@@ -431,7 +444,7 @@ const CombinationLockModule = ({ serialNumber, onSuccess, onStrike }) => {
     if(dialPos===combo[stage]){
       if(stage>=2){setSolved(true);onSuccess();}
       else setStage(s=>s+1);
-    }
+    } else onStrike(); // a wrong try used to be free, so the dial could be tried number by number
   };
   return (<div className="module-content"><h3>🔒 COMBINATION LOCK</h3><p className="module-hint">Stage {stage+1}/3 — Turn {stage%2===0?"RIGHT":"LEFT"}</p>
     <div style={{textAlign:"center",margin:"0.5rem 0"}}>
@@ -473,12 +486,16 @@ const SFX = window.SFX = (() => {
     win: () => { [523, 659, 784, 1047, 784, 1047].forEach((f, i) => tone(f, i * 0.13, i === 5 ? 0.7 : 0.14, "triangle", 0.13)); },
     unlockFinale: () => { tone(330, 0, 0.1, "square", 0.08); tone(440, 0.1, 0.1, "square", 0.08); tone(330, 0.2, 0.1, "square", 0.08); tone(660, 0.3, 0.35, "square", 0.08); },
     stars: (n) => { for (let i = 0; i < n; i++) tone(880 + i * 220, 0.6 + i * 0.45, 0.25, "triangle", 0.12); },
+    alarm: () => { tone(1900, 0, 0.09, "square", 0.09); tone(1900, 0.14, 0.09, "square", 0.09); },
+    needy: () => { tone(700, 0, 0.1, "sawtooth", 0.09); tone(700, 0.15, 0.1, "sawtooth", 0.09); tone(700, 0.3, 0.1, "sawtooth", 0.09); },
+    lights: () => { tone(90, 0, 0.5, "sawtooth", 0.1, 40); },
+    ok: () => tone(990, 0, 0.12, "triangle", 0.1),
     boom: () => { noise(0, 1.8, 0.6, 2500); tone(110, 0, 1.2, "sine", 0.35, 28); },
   };
 })();
 
 /* ===== MODULE WRAPPER ===== */
-const ModuleWrapper = ({ module, serialNumber, onComplete, onStrike, locked, finale }) => {
+const ModuleWrapper = ({ module, serialNumber, bomb, onComplete, onStrike, locked, finale }) => {
   const [status,setStatus] = useState("active");
   const handleSuccess = () => {setStatus("success");setTimeout(()=>onComplete(module.id),600);};
   const components = {colorWires:ColorWiresModule,userName:UserNameModule,monsterLab:MonsterLabModule,guessWho:GuessWhoModule,vendingMachine:VendingMachineModule,symbolKeypad:SymbolKeypadModule,numberKeypad:NumberKeypadModule,bigButton:BigButtonModule,sliders:SlidersModule,crackTheCode:CrackTheCodeModule,wordButtons:WordButtonsModule,memory:MemoryModule,symbolPanel:SymbolPanelModule,colorSwitchboard:ColorSwitchboardModule,worldClock:WorldClockModule,combinationLock:CombinationLockModule,...Object.fromEntries((window.EXTRA_MODULES||[]).map(m=>[m.type,m.Component]))};
@@ -489,7 +506,7 @@ const ModuleWrapper = ({ module, serialNumber, onComplete, onStrike, locked, fin
     {finale&&status==="active"&&<div className="finale-tag">⚠️ LAST MODULE</div>}
     {TEST_MODE&&status==="active"&&<div className="test-tools"><button onClick={handleSuccess}>TEST: SOLVE</button><button onClick={onStrike}>TEST: STRIKE</button></div>}
     <div className="module-status-indicator">{status==="success"&&<span className="status-icon">✓</span>}{status==="active"&&<span className="status-dot"></span>}</div>
-    {Comp?(<Comp serialNumber={serialNumber} onSuccess={handleSuccess} onStrike={onStrike}/>):null}
+    {Comp?(<Comp serialNumber={serialNumber} bomb={bomb} onSuccess={handleSuccess} onStrike={onStrike}/>):null}
     {status==="success"&&(<div className="module-complete"><span className="complete-badge"><span className="complete-icon">✅</span><span>MODULE DEFUSED</span></span></div>)}</div>);
 };
 
@@ -503,6 +520,12 @@ const ExpertManual = ({only}) => {
   const S = ({id,title,children}) => only&&!only.includes(SECTION_MODULE[id]||id) ? null : (<div className="manual-section"><h2 onClick={()=>toggle(id)} style={{cursor:"pointer"}}>{title} {openSection===id?"▼":"▶"}</h2>{openSection===id&&<div>{children}</div>}</div>);
   return (<div className="manual-page-content">
     <h1 className="manual-title">📖 BOMB DEFUSAL MANUAL</h1><p className="manual-subtitle">CLASSIFIED — For Experts Only · Tap a section to expand</p>
+    <div className="manual-section"><h2>💣 The Bomb</h2><div>
+      <p>Some rules ask about the bomb. You cannot see it. Ask the Defuser:</p>
+      <p>• "What <strong>color</strong> is the bomb?" (red, blue, green, yellow or purple)</p>
+      <p>• "How many <strong>batteries</strong> are on the bomb?" (one, two, three or four)</p>
+      <p>• "What is on the <strong>sticker</strong>?" (an animal or a food)</p>
+      <p>• "What is the <strong>serial number</strong>?"</p></div></div>
 
     <S id="wires" title="🔌 Color Wires">
       <p><strong>Ask:</strong> "How many wires do you see?" and "What color is each wire, from top to bottom?"</p>
@@ -551,7 +574,7 @@ const ExpertManual = ({only}) => {
         <tr><td>0, 1, 2</td><td>EYES</td><td>1 eye=MEEP, 2=BLIP, 3=ZORG, 4=FLOP</td></tr>
         <tr><td>3, 4, 5</td><td>SKIN COLOR</td><td>purple=ZORG, green=BLIP, orange=FLOP</td></tr>
         <tr><td>6, 7</td><td>ARMS</td><td>tentacles=BLIP, robot=MEEP, furry=FLOP</td></tr>
-        <tr><td>8, 9</td><td>EYES (advanced)</td><td>eyes mod 4 → [ZORG, BLIP, FLOP, MEEP]</td></tr>
+        <tr><td>8, 9</td><td>EYES (second list)</td><td>1 eye=BLIP, 2=FLOP, 3=MEEP, 4=ZORG</td></tr>
       </tbody></table>
       <p><strong>Step 3:</strong> Tell the Defuser: "Press [monster name]."</p>
     </S>
@@ -566,17 +589,17 @@ const ExpertManual = ({only}) => {
     </S>
 
     <S id="vending" title="🏭 Vending Machine">
-      <p><strong>Ask:</strong> "What items do you see?" and "How much does each one cost?" and "What is the serial number?"</p>
-      <p><strong>Step 1:</strong> Find the <strong>last NUMBER</strong> in the serial number.</p>
-      <p><strong>Step 2:</strong> Use the matching rule:</p>
-      <table className="manual-table"><thead><tr><th>Last Digit</th><th>Buy This Item</th></tr></thead><tbody>
-        <tr><td>0 or 1</td><td>The <strong>cheapest</strong> item</td></tr>
-        <tr><td>2 or 3</td><td>The <strong>most expensive</strong> item</td></tr>
-        <tr><td>4 or 5</td><td>An item that costs <strong>more than $1.00 but less than $2.00</strong></td></tr>
-        <tr><td>6 or 7</td><td>A <strong>food</strong> item (not a drink)</td></tr>
-        <tr><td>8 or 9</td><td>An item with a price <strong>ending in .50</strong></td></tr>
+      <p><strong>Ask:</strong> "What items do you see?" and "How much does each one cost?" and "What color is the bomb?"</p>
+      <p><strong>Step 1:</strong> Find the bomb's color in the table:</p>
+      <table className="manual-table"><thead><tr><th>The bomb is…</th><th>Buy This Item</th></tr></thead><tbody>
+        <tr><td className="color-cell red">Red</td><td>The <strong>cheapest</strong> item</td></tr>
+        <tr><td className="color-cell blue">Blue</td><td>The <strong>most expensive</strong> item</td></tr>
+        <tr><td className="color-cell green">Green</td><td>An item that costs <strong>more than $1.00 but less than $2.00</strong></td></tr>
+        <tr><td className="color-cell yellow">Yellow</td><td>A <strong>food</strong> item (not a drink)</td></tr>
+        <tr><td style={{background:"#a65bd6",color:"#fff"}}>Purple</td><td>An item with a price <strong>ending in .50</strong></td></tr>
       </tbody></table>
-      <p><strong>Step 3:</strong> Tell the Defuser: "Buy the [item name]."</p>
+      <p><strong>Step 2:</strong> Tell the Defuser: "Buy the [item name]."</p>
+      <p style={{color:"#888",fontStyle:"italic"}}>If two items fit the rule, either one is OK. If no item fits the rule, buy the cheapest item.</p>
     </S>
 
     <S id="symbol" title="🔣 Symbol Keypad">
@@ -597,12 +620,12 @@ const ExpertManual = ({only}) => {
     </S>
 
     <S id="bigbtn" title="🔴 Big Button">
-      <p><strong>Ask:</strong> "What color is the button?" and "What word is on the button?" and "What is the last digit of the serial number?"</p>
+      <p><strong>Ask:</strong> "What color is the button?" and "What word is on the button?" and "How many batteries are on the bomb?"</p>
       <p><strong>Use these rules in order (stop at the first match):</strong></p>
       <p>1. If the button is <strong>blue</strong> AND says <strong>HOLD</strong> → tell them to <strong>HOLD for 2+ seconds</strong>.</p>
       <p>2. If the button is <strong>red</strong> AND says <strong>PRESS</strong> → tell them to do a <strong>quick press</strong>.</p>
       <p>3. If the button is <strong>white</strong> → tell them to <strong>HOLD for 2+ seconds</strong>.</p>
-      <p>4. If the last serial digit is <strong>8 or 9</strong> → tell them to <strong>HOLD for 2+ seconds</strong>.</p>
+      <p>4. If the bomb has <strong>three or four batteries</strong> → tell them to <strong>HOLD for 2+ seconds</strong>.</p>
       <p>5. Otherwise → tell them to do a <strong>quick press</strong> (tap and release fast!).</p>
       <p style={{color:"#888",fontStyle:"italic"}}>Quick press = less than half a second. Hold = press and keep holding for 2 seconds, then release.</p>
     </S>
@@ -630,13 +653,12 @@ const ExpertManual = ({only}) => {
     </S>
 
     <S id="word" title="📝 Word Buttons">
-      <p><strong>Ask:</strong> "What words do you see on the buttons?" and "What is the serial number?"</p>
-      <p><strong>Step 1:</strong> Find the <strong>last LETTER</strong> in the serial number.</p>
-      <p><strong>Step 2:</strong></p>
-      <p>• If the letter is <strong>A through J</strong> → press the word with the <strong>MOST</strong> letters.</p>
-      <p>• If the letter is <strong>K through O</strong> → press the word with the <strong>FEWEST</strong> letters.</p>
-      <p>• If the letter is <strong>P through Z</strong> → press the word with the <strong>MOST</strong> letters.</p>
-      <p><strong>Step 3:</strong> Count the letters in each word and tell the Defuser which one to press.</p>
+      <p><strong>Ask:</strong> "What words do you see on the buttons?" and "What is on the bomb's sticker?"</p>
+      <p><strong>Step 1:</strong> Is the sticker an animal or a food?</p>
+      <p>• If the sticker is an <strong>animal</strong> (cat, dog, bird, rabbit, monkey, tiger) → press the word with the <strong>MOST</strong> letters.</p>
+      <p>• If the sticker is a <strong>food</strong> (apple, banana, cake, egg, pizza, bread) → press the word with the <strong>FEWEST</strong> letters.</p>
+      <p><strong>Step 2:</strong> Count the letters in each word and tell the Defuser which one to press.</p>
+      <p style={{color:"#888",fontStyle:"italic"}}>If two words have the same number of letters, either one is OK.</p>
     </S>
 
     <S id="mem" title="🧠 Memory">
@@ -669,7 +691,7 @@ const ExpertManual = ({only}) => {
         <tr><td className="color-cell yellow">Yellow</td><td>LEFT</td><td>RIGHT</td><td>DOWN</td><td>UP</td></tr>
         <tr><td className="color-cell green">Green</td><td>UP</td><td>DOWN</td><td>LEFT</td><td>RIGHT</td></tr>
       </tbody></table>
-      <p style={{color:"#888",fontStyle:"italic"}}>All four switches must be correct. A green border appears when a switch is set correctly.</p>
+      <p style={{color:"#888",fontStyle:"italic"}}>Set all four switches, then tell the Defuser to press SUBMIT. The bomb does not show which switches are right, and a wrong SUBMIT is a mistake.</p>
     </S>
 
     <S id="world" title="🌍 World Clock">
@@ -704,15 +726,15 @@ const ExpertManual = ({only}) => {
         <tr><td>I</td><td>30</td><td>R</td><td>20</td><td></td><td></td></tr>
       </tbody></table>
       <p><strong>Step 2:</strong> Calculate the three numbers:</p>
-      <p>• <strong>N1</strong> = letter value mod 40</p>
-      <p>• <strong>N2</strong> = (N1 + 1st digit + 2nd digit) mod 40</p>
-      <p>• <strong>N3</strong> = (2nd digit × 3 + 3rd digit) mod 40</p>
+      <p>• <strong>N1</strong> = the letter value</p>
+      <p>• <strong>N2</strong> = N1 + 1st digit + 2nd digit. If that is 40 or more, take away 40.</p>
+      <p>• <strong>N3</strong> = (2nd digit × 3) + 3rd digit</p>
       <p><strong>Step 3:</strong> Tell the Defuser the directions and numbers:</p>
       <p>1. "Turn <strong>RIGHT</strong> to [N1]."</p>
       <p>2. "Turn <strong>LEFT</strong> to [N2]."</p>
       <p>3. "Turn <strong>RIGHT</strong> to [N3]."</p>
-      <p>4. "Press UNLOCK."</p>
-      <p style={{color:"#888",fontStyle:"italic"}}>The pattern is always RIGHT → LEFT → RIGHT. "Mod 40" means if the number is 40 or more, subtract 40.</p>
+      <p>4. "Press TRY UNLOCK" after each turn. Be sure first: a wrong try is a mistake.</p>
+      <p style={{color:"#888",fontStyle:"italic"}}>The pattern is always RIGHT → LEFT → RIGHT. Use paper for the math.</p>
     </S>
     {(window.EXTRA_MODULES||[]).map(m=>(<S key={m.id} id={m.id} title={m.name}><m.Manual/></S>))}
   </div>);
@@ -768,10 +790,11 @@ const buildMission = (spec) => {
   }
   /* each copy gets its own id so the bomb can tell copies apart */
   const modules=order.map((id,i)=>({...MODULES_LIST.find(m=>m.id===id),id:id+"#"+i,baseId:id}));
-  return {timer:spec.mission?spec.mission.timer:spec.timer,modules,finaleId:hasFinale?modules[modules.length-1].id:null,mission:spec.mission||null,spec};
+  return {timer:spec.mission?spec.mission.timer:spec.timer,modules,finaleId:hasFinale?modules[modules.length-1].id:null,mission:spec.mission||null,fun:!!spec.fun,spec};
 };
 
-const SettingsPanel = ({onStartGame}) => {
+const FUN_NOTE = "Alarm clock, lights out and a bomb quiz. Fun, but it takes time away from talking.";
+const SettingsPanel = ({onStartGame,fun,setFun}) => {
   const [timer,setTimer]=useState(300);
   /* MODULES = how many go on the bomb. The pool (sel) = what the bomb is built from; it needs at least 1.
      - pool bigger than MODULES: the bomb draws that many at random, no repeats.
@@ -784,7 +807,7 @@ const SettingsPanel = ({onStartGame}) => {
   const changeCount=(n)=>setPool(({count,sel})=>({count:n,sel:sel.length<count?sel:[...sel,...SORTED_MODULES.filter(m=>!sel.includes(m.id)).slice(0,Math.max(0,n-sel.length)).map(m=>m.id)]}));
   const toggle=(id)=>setPool(p=>p.sel.includes(id)?(p.sel.length<=1?p:{...p,sel:p.sel.filter(m=>m!==id)}):{...p,sel:[...p.sel,id]});
   const [finale,setFinale]=useState(true);
-  const handleStart=()=>{SFX.unlock();onStartGame({timer,pool:sel,count:moduleCount,finale});};
+  const handleStart=()=>{SFX.unlock();onStartGame({timer,pool:sel,count:moduleCount,finale,fun});};
   const presets=[{l:"2:00",v:120},{l:"3:00",v:180},{l:"5:00",v:300},{l:"7:00",v:420},{l:"10:00",v:600}];
   return (<div className="settings-panel"><h2>⚙️ MISSION SETUP</h2>
     <div className="setting-group"><label>TIMER</label><div className="timer-selector">{presets.map(p=>(<button key={p.v} onClick={()=>setTimer(p.v)} className={`timer-btn ${timer===p.v?"active":""}`}>{p.l}</button>))}</div></div>
@@ -794,12 +817,54 @@ const SettingsPanel = ({onStartGame}) => {
       <div className="module-toggles">{SORTED_MODULES.map(mod=>(<button key={mod.id} onClick={()=>toggle(mod.id)} className={`module-toggle ${sel.includes(mod.id)?"active":""} ${sel.length===1&&sel.includes(mod.id)?"locked":""}`}><span className="toggle-name">{mod.name}</span><span className="toggle-diff">{mod.difficulty}</span></button>))}</div></div>
     <div className="setting-group"><label>LAST MODULE</label><div className="timer-selector"><button onClick={()=>setFinale(true)} className={`timer-btn ${finale?"active":""}`}>🔒 LOCKED UNTIL THE END</button><button onClick={()=>setFinale(false)} className={`timer-btn ${!finale?"active":""}`}>ALL OPEN</button></div>
       <p className="pool-note" style={{marginTop:"0.5rem"}}>{finale?(moduleCount>=3?"The hardest module stays locked until the others are defused.":"Needs 3 or more modules, so this bomb has no lock."):"All modules can be played from the start."}</p></div>
+    <div className="setting-group"><label>FUN MODE</label><div className="timer-selector"><button onClick={()=>setFun(false)} className={`timer-btn ${!fun?"active":""}`}>OFF</button><button onClick={()=>setFun(true)} className={`timer-btn ${fun?"active":""}`}>🎲 ON</button></div>
+      <p className="pool-note" style={{marginTop:"0.5rem"}}>{FUN_NOTE}</p></div>
     <button onClick={handleStart} className="start-game-btn">🚀 START MISSION</button></div>);
+};
+
+/* ===== FUN MODE (off unless the teacher turns it on) =====
+   Three KTANE-style interruptions. They are fun, but they take time away from talking, so they are never on by default.
+   - Alarm clock: rings until someone taps it. No penalty.
+   - Lights out: the modules go dark for a few seconds.
+   - Bomb quiz: a yes/no question in English about the bomb (color, batteries, sticker). Wrong or too slow = a strike.
+   In test mode (?test) everything comes much sooner. */
+const funDelay = (a,b) => (a+Math.random()*(b-a))*1000*(TEST_MODE?0.12:1);
+const makeBombQuestion = (bomb) => {
+  const pick=(a)=>a[Math.floor(Math.random()*a.length)], truth=Math.random()<0.5, kind=pick(["color","batteries","sticker"]);
+  if(kind==="color"){const c=truth?bomb.color:pick(Object.keys(BOMB_COLORS).filter(x=>x!==bomb.color));return{text:`Is the bomb ${c}?`,yes:truth};}
+  if(kind==="batteries"){const n=truth?bomb.batteries:pick([1,2,3,4].filter(x=>x!==bomb.batteries));return{text:`Does the bomb have ${NUMBER_WORDS[n]} ${n===1?"battery":"batteries"}?`,yes:truth};}
+  const st=truth?bomb.sticker:pick(BOMB_STICKERS.filter(x=>x.name!==bomb.sticker.name));
+  return{text:`Is there ${/^[aeiou]/.test(st.name)?"an":"a"} ${st.name} on the bomb?`,yes:truth};
+};
+const QUIZ_SECONDS = 20;
+const BombQuiz = ({bomb,active,onStrike}) => {
+  const [q,setQ]=useState(null); /* null = asleep, or {text, yes, left} */
+  useEffect(()=>{if(!active||q)return;const t=setTimeout(()=>{SFX.needy();setQ({...makeBombQuestion(bomb),left:QUIZ_SECONDS});},funDelay(25,45));return()=>clearTimeout(t);},[active,!q]);
+  useEffect(()=>{if(!active||!q)return;if(q.left<=0){onStrike();setQ(null);return;}const t=setTimeout(()=>setQ(x=>x&&{...x,left:x.left-1}),1000);return()=>clearTimeout(t);},[active,q]);
+  const answer=(yes)=>{if(!q)return;if(yes===q.yes)SFX.ok();else onStrike();setQ(null);};
+  return (<div className={`module-wrapper quiz-box ${q?"awake":""}`}><div className="module-content"><h3>❓ BOMB QUIZ</h3>
+    {q?(<div><p className="quiz-text">{q.text}</p><div className="quiz-bar"><span style={{width:`${q.left/QUIZ_SECONDS*100}%`}}></span></div>
+      <div className="options-grid"><button className="option-btn" onClick={()=>answer(true)}>YES</button><button className="option-btn" onClick={()=>answer(false)}>NO</button></div></div>)
+     :(<p className="quiz-sleep">💤</p>)}</div></div>);
+};
+const AlarmClock = ({active}) => {
+  const [ringing,setRinging]=useState(false);
+  useEffect(()=>{if(!active||ringing)return;const t=setTimeout(()=>setRinging(true),funDelay(40,70));return()=>clearTimeout(t);},[active,ringing]);
+  useEffect(()=>{if(!active||!ringing)return;SFX.alarm();const t=setInterval(()=>SFX.alarm(),650);return()=>clearInterval(t);},[active,ringing]);
+  return ringing?(<button className="alarm-clock" onClick={()=>setRinging(false)}><span>⏰</span>TAP!</button>):null;
+};
+/* returns true while the lights are out */
+const useLightsOut = (on,active) => {
+  const [dark,setDark]=useState(false);
+  useEffect(()=>{if(!on||!active)return;const t=setTimeout(()=>{if(!dark)SFX.lights();setDark(d=>!d);},dark?4000:funDelay(50,80));return()=>clearTimeout(t);},[on,active,dark]);
+  return on&&active&&dark;
 };
 
 const BombComponent = ({config,team,onGameEnd}) => {
   const [timeLeft,setTimeLeft]=useState(config.timer);const [strikes,setStrikes]=useState(0);const [completed,setCompleted]=useState([]);
   const [serialNumber]=useState(generateSerialNumber);const [gameStatus,setGameStatus]=useState("countdown");const [shake,setShake]=useState(false);const [countdown,setCountdown]=useState(3);const maxStrikes=3;const [muted,setMuted]=useState(SFX.isMuted());
+  const [bomb]=useState(makeBomb); /* color, batteries, sticker */
+  const dark=useLightsOut(!!config.fun,gameStatus==="playing");
   /* every strike makes the clock run faster: x1, x1.25, x1.5 */
   const speed=1+0.25*strikes;
   useEffect(()=>{if(gameStatus!=="countdown")return;if(countdown<=0){SFX.go();setGameStatus("playing");return;}SFX.count();const t=setTimeout(()=>setCountdown(c=>c-1),1000);return()=>clearTimeout(t);},[gameStatus,countdown]);
@@ -809,18 +874,20 @@ const BombComponent = ({config,team,onGameEnd}) => {
   const stats=useRef({}); /* per module: {strikes, solved} for the results screen */
   const stat=(id)=>stats.current[id]||(stats.current[id]={strikes:0,solved:false});
   useEffect(()=>{if(gameStatus!=="won"&&gameStatus!=="lost")return;const win=gameStatus==="won";if(win)SFX.win();else SFX.boom();
-    onGameEnd({win,reason:win?null:strikes>=maxStrikes?"strikes":"time",timeLeft,timer:config.timer,strikes,modules:config.modules.map(m=>({name:m.name,...stat(m.id)}))});},[gameStatus]);
+    onGameEnd({win,reason:win?null:strikes>=maxStrikes?"strikes":"time",timeLeft,timer:config.timer,strikes,funStrikes:stat("fun").strikes,modules:config.modules.map(m=>({name:m.name,...stat(m.id)}))});},[gameStatus]);
   const finaleLocked=!!config.finaleId&&completed.length<config.modules.length-1;
   useEffect(()=>{if(config.finaleId&&!finaleLocked&&gameStatus==="playing")SFX.unlockFinale();},[finaleLocked]);
   const strikesRef=useRef(0); /* a ref, so a module holding an old copy of onStrike still counts correctly */
   const handleStrike=(id)=>{if(strikesRef.current>=maxStrikes)return;stat(id).strikes++;const s=++strikesRef.current;SFX.strike();setStrikes(s);setShake(true);setTimeout(()=>setShake(false),500);if(s>=maxStrikes)setGameStatus("lost");};
   const tc=timeLeft<30?"#ff0000":timeLeft<60?"#ff8800":"#00ff00";
-  return (<div className={`bomb-container ${shake?"shake":""}`}>
+  return (<div className={`bomb-container ${shake?"shake":""}`} style={{borderColor:BOMB_COLORS[bomb.color],boxShadow:`0 0 0 4px ${BOMB_COLORS[bomb.color]},0 0 60px rgba(102,126,234,0.15),inset 0 0 60px rgba(0,0,0,0.3)`}}>
+    {config.fun&&<AlarmClock active={gameStatus==="playing"}/>}
     {gameStatus==="countdown"&&<div className="countdown-overlay"><div className="countdown-number">{countdown>0?countdown:"GO!"}</div></div>}
     <div className="bomb-header"><div className="timer-display" style={{color:tc,textShadow:`0 0 15px ${tc}`}}>{Math.floor(timeLeft/60)}:{String(timeLeft%60).padStart(2,"0")}{strikes>0&&<span className="speed-badge">⏩ ×{speed}</span>}</div>
       <div className="serial-display">{team&&<div className="team-tag">{team[0]} {team[1]}{config.mission?` · MISSION ${config.mission.num}`:""}</div>}<span className="serial-label">SN:</span><span className="serial-value">{serialNumber}</span></div>
+      <div className="bomb-plate"><span className="battery-row">{Array.from({length:bomb.batteries},(_,i)=>(<img key={i} className="pixel-art" alt="battery" src={batterySrc()} width={24} height={42}/>))}</span><span className="sticker"><img className="pixel-art" alt={bomb.sticker.name} src={stickerSrc(bomb.sticker)} width={48} height={48}/></span></div>
       <div className="strikes-display">{Array.from({length:maxStrikes},(_,i)=>(<span key={i} className={`strike-indicator ${i<strikes?"active":""}`}>{i<strikes?"❌":"⭕"}</span>))}<button className="mute-btn" aria-label={muted?"sound off":"sound on"} onClick={()=>{SFX.setMuted(!muted);setMuted(!muted);}}>{muted?"🔇":"🔊"}</button></div></div>
-    <div className="modules-grid">{config.modules.map(mod=>(<ModuleWrapper key={mod.id} module={mod} serialNumber={serialNumber} locked={finaleLocked&&mod.id===config.finaleId} finale={mod.id===config.finaleId} onComplete={id=>{stat(id).solved=true;if(completed.length+1<config.modules.length)SFX.defuse();setCompleted(p=>[...p,id]);}} onStrike={()=>handleStrike(mod.id)}/>))}</div></div>);
+    <div className={`modules-grid ${dark?"lights-out":""}`}>{config.modules.map(mod=>(<ModuleWrapper key={mod.id} module={mod} serialNumber={serialNumber} bomb={bomb} locked={finaleLocked&&mod.id===config.finaleId} finale={mod.id===config.finaleId} onComplete={id=>{stat(id).solved=true;if(completed.length+1<config.modules.length)SFX.defuse();setCompleted(p=>[...p,id]);}} onStrike={()=>handleStrike(mod.id)}/>))}{config.fun&&<BombQuiz bomb={bomb} active={gameStatus==="playing"} onStrike={()=>handleStrike("fun")}/>}</div></div>);
 };
 
 /* ===== RESULTS ===== */
@@ -840,7 +907,7 @@ const ResultsScreen = ({result,config,team,best,isNewBest,onReplay,onSwap,onNext
       <Row ok={result.win&&result.strikes<=1}>0 or 1 mistakes <em>(you: {result.strikes})</em></Row>
       <Row ok={result.win&&result.timeLeft>=need}>Time left {fmtTime(need)} or more <em>(you: {fmtTime(result.timeLeft)})</em></Row>
     </div>
-    <div className="result-card">{result.modules.map((m,i)=>(<div key={i} className="mod-row"><span>{m.solved?"✅":"💣"}</span><span className="mod-name">{m.name}</span><span className="mod-x">{m.strikes>0?"❌".repeat(m.strikes):""}</span></div>))}</div>
+    <div className="result-card">{result.modules.map((m,i)=>(<div key={i} className="mod-row"><span>{m.solved?"✅":"💣"}</span><span className="mod-name">{m.name}</span><span className="mod-x">{m.strikes>0?"❌".repeat(m.strikes):""}</span></div>))}{result.funStrikes>0&&<div className="mod-row"><span>🎲</span><span className="mod-name">Bomb Quiz</span><span className="mod-x">{"❌".repeat(result.funStrikes)}</span></div>}</div>
     <div className="result-buttons">
       {result.win&&onNext&&<button className="play-again-btn win" onClick={onNext}>NEXT MISSION ▶</button>}
       <button className={`play-again-btn ${result.win&&onNext?"plain":result.win?"win":"lose"}`} onClick={onReplay}>{result.win?"PLAY AGAIN":"TRY AGAIN"}</button>
@@ -850,7 +917,7 @@ const ResultsScreen = ({result,config,team,best,isNewBest,onReplay,onSwap,onNext
 };
 
 /* ===== MISSION SELECT ===== */
-const MissionSelect = ({progress,onPick}) => {
+const MissionSelect = ({progress,onPick,fun,setFun}) => {
   const total=MISSIONS.reduce((n,m)=>n+((progress[m.id]||{}).stars||0),0);
   const next=MISSIONS.find(m=>!((progress[m.id]||{}).stars));
   return (<div className="settings-panel" style={{maxWidth:"760px"}}><h2>🎯 MISSIONS</h2>
@@ -860,7 +927,8 @@ const MissionSelect = ({progress,onPick}) => {
         <span className="mission-num">{m.num}</span><span className="mission-name">{m.name}</span>
         <span className="mission-stars">{"★".repeat(st)}<i>{"★".repeat(3-st)}</i></span>
         <span className="mission-meta">{m.modules.length} modules · {fmtTime(m.timer)}</span>
-        {next&&next.id===m.id&&<span className="mission-next">NEXT</span>}</button>);})}</div></div>);
+        {next&&next.id===m.id&&<span className="mission-next">NEXT</span>}</button>);})}</div>
+    <div className="fun-row"><button onClick={()=>setFun(!fun)} className={`timer-btn ${fun?"active":""}`}>🎲 FUN MODE: {fun?"ON":"OFF"}</button><span>{FUN_NOTE}</span></div></div>);
 };
 
 function App(){
@@ -868,6 +936,7 @@ function App(){
   const [teamIdx,setTeamIdx]=useState(()=>{const t=STORE.get("team",null);if(t!=null&&TEAMS[t])return t;const r=Math.floor(Math.random()*TEAMS.length);STORE.set("team",r);return r;});
   const team=TEAMS[teamIdx];const nextTeam=()=>{const t=(teamIdx+1)%TEAMS.length;setTeamIdx(t);STORE.set("team",t);};
   const [progress,setProgress]=useState(()=>STORE.get("progress",{})); /* {missionId:{stars,timeLeft}} */
+  const [fun,setFun]=useState(false); /* Fun mode: never saved, so every class starts with it off */
   const [manualOnly,setManualOnly]=useState(null); /* null = whole manual, or {label, ids} */
   const reset=()=>{setScreen("menu");setConfig(null);setShowManual(false);setGameResult(null);setGameKey(k=>k+1);};
   const startGame=(spec)=>{setConfig(buildMission(spec));setGameResult(null);setShowManual(false);setGameKey(k=>k+1);setScreen("playing");};
@@ -988,6 +1057,18 @@ function App(){
       .lock-face{text-align:center;color:#888;padding:1rem;}.lock-icon{font-size:3rem;}.lock-title{font-family:'Orbitron',sans-serif;color:#ffcc00;margin:0.4rem 0 0.2rem;letter-spacing:2px;}.lock-sub{font-size:0.8rem;}
       .module-wrapper.finale:not(.success){border-color:#ff8800;box-shadow:0 0 22px rgba(255,136,0,0.35);animation:finaleIn 0.6s ease;}
       @keyframes finaleIn{0%{transform:scale(0.92);}60%{transform:scale(1.04);}100%{transform:scale(1);}}
+      .bomb-container{border-width:4px;}
+      .bomb-plate{display:flex;align-items:center;gap:0.9rem;}.battery-row{display:flex;gap:3px;align-items:flex-end;}
+      .sticker{display:inline-flex;background:#f6f4ef;border-radius:8px;padding:4px;transform:rotate(-6deg);box-shadow:1px 2px 4px rgba(0,0,0,0.5);}
+      .modules-grid{transition:filter 0.25s;}.modules-grid.lights-out{filter:brightness(0.06);animation:flicker 0.5s steps(2) 1;}
+      @keyframes flicker{0%{filter:brightness(1);}25%{filter:brightness(0.06);}50%{filter:brightness(0.8);}100%{filter:brightness(0.06);}}
+      .quiz-box{border-style:dashed;}.quiz-box.awake{border-color:#ff8800;border-style:solid;box-shadow:0 0 22px rgba(255,136,0,0.4);animation:finaleIn 0.5s ease;}
+      .quiz-text{font-size:1.15rem;color:#fff;text-align:center;margin:0.25rem 0 0.6rem;line-height:1.4;}.quiz-sleep{text-align:center;font-size:2.5rem;opacity:0.5;padding:1rem 0;}
+      .quiz-bar{height:8px;background:#333;border-radius:4px;overflow:hidden;margin-bottom:0.75rem;}.quiz-bar span{display:block;height:100%;background:#ff8800;transition:width 1s linear;}
+      .alarm-clock{position:fixed;right:1.25rem;bottom:1.25rem;z-index:80;display:flex;flex-direction:column;align-items:center;gap:0.1rem;padding:0.75rem 1rem;background:#ff4444;color:#fff;border:3px solid #fff;border-radius:16px;font-family:'Orbitron',sans-serif;font-weight:bold;cursor:pointer;animation:alarmShake 0.15s linear infinite;}
+      .alarm-clock span{font-size:3rem;line-height:1;}
+      @keyframes alarmShake{0%{transform:rotate(-7deg);}50%{transform:rotate(7deg);}100%{transform:rotate(-7deg);}}
+      .fun-row{display:flex;align-items:center;gap:0.75rem;margin-top:1.5rem;color:#888;font-size:0.75rem;flex-wrap:wrap;}
       .test-tools{display:flex;gap:0.3rem;padding:0.25rem;background:#3a3200;}.test-tools button{flex:1;font-size:0.65rem;padding:0.2rem;background:#f1c40f;border:none;cursor:pointer;font-family:'Share Tech Mono',monospace;}
       .finale-tag{background:#ff8800;color:#000;font-family:'Orbitron',sans-serif;font-size:0.7rem;font-weight:bold;text-align:center;padding:0.2rem;letter-spacing:2px;}
       .manual-filter{display:flex;flex-wrap:wrap;gap:0.35rem;align-items:center;justify-content:center;padding:3.5rem 1rem 0.5rem;font-size:0.8rem;color:#aaa;}
@@ -999,13 +1080,13 @@ function App(){
       @media(max-width:768px){.game-title{font-size:2rem;}.bomb-icon{font-size:5rem;}.bomb-header{flex-direction:column;text-align:center;}.timer-display{font-size:2rem;}.modules-grid{grid-template-columns:1fr;}.manual-overlay{width:100%;}.menu-btn{padding:0.8rem 2rem;font-size:0.9rem;}.settings-panel{margin:1rem;padding:1.5rem;}}
     `}</style>
     {screen==="menu"&&(<div className="menu-screen"><div className="bomb-icon">💣</div><h1 className="game-title">ESL BOMB SQUAD</h1><p className="game-subtitle">Communication Under Pressure</p>{TEST_MODE&&<p style={{color:"#f1c40f",marginTop:"-2rem",marginBottom:"2rem",letterSpacing:"3px"}}>TEST MODE</p>}<div className="menu-buttons"><button className="team-btn" onClick={nextTeam}>TEAM: {team[0]} {team[1]} <span>tap to change</span></button><button className="menu-btn primary" onClick={()=>setScreen("missions")}>🎯 MISSIONS</button><button className="menu-btn secondary" onClick={()=>{setManualOnly(null);setScreen("manual-only");}}>📖 EXPERT MANUAL</button><button className="menu-btn tertiary" onClick={()=>setScreen("settings")}>🛠 FREE PLAY</button></div></div>)}
-    {screen==="missions"&&(<div><button className="back-btn" onClick={()=>setScreen("menu")}>← Back</button><MissionSelect progress={progress} onPick={m=>startGame({mission:m})}/></div>)}
-    {screen==="settings"&&(<div><button className="back-btn" onClick={()=>setScreen("menu")}>← Back</button><SettingsPanel onStartGame={startGame}/></div>)}
+    {screen==="missions"&&(<div><button className="back-btn" onClick={()=>setScreen("menu")}>← Back</button><MissionSelect progress={progress} fun={fun} setFun={setFun} onPick={m=>startGame({mission:m,fun})}/></div>)}
+    {screen==="settings"&&(<div><button className="back-btn" onClick={()=>setScreen("menu")}>← Back</button><SettingsPanel onStartGame={startGame} fun={fun} setFun={setFun}/></div>)}
     {screen==="playing"&&config&&(<div className="game-layout"><button className="back-btn" onClick={reset}>← Quit</button>{TEST_MODE&&<button className={`manual-toggle ${showManual?"active":""}`} onClick={()=>setShowManual(!showManual)}>{showManual?"✕ Close Manual":"📖 Manual (TEST)"}</button>}<BombComponent key={gameKey} config={config} team={team} onGameEnd={endGame}/>{TEST_MODE&&<div className={`manual-overlay ${showManual?"visible":""}`}><ExpertManual only={[...new Set(config.modules.map(m=>m.baseId))]}/></div>}</div>)}
     {screen==="manual-only"&&(<div><button className="back-btn" onClick={()=>setScreen("menu")}>← Back</button>
       <div className="manual-filter"><span>SHOW:</span><button className={!manualOnly?"active":""} onClick={()=>setManualOnly(null)}>ALL</button>{manualOnly&&!manualOnly.label.startsWith("MISSION")&&<button className="active">{manualOnly.label}</button>}{MISSIONS.map(m=>(<button key={m.id} className={manualOnly&&manualOnly.label===`MISSION ${m.num}`?"active":""} onClick={()=>setManualOnly({label:`MISSION ${m.num}`,ids:m.modules})}>{m.num}</button>))}{manualOnly&&manualOnly.label.startsWith("MISSION")&&<em>{manualOnly.label}: {MISSIONS[Number(manualOnly.label.slice(8))-1].name}</em>}</div>
       <ExpertManual key={manualOnly?manualOnly.label:"all"} only={manualOnly?manualOnly.ids:null}/></div>)}
-    {screen==="result"&&gameResult&&config&&<ResultsScreen result={gameResult.result} best={gameResult.best} isNewBest={gameResult.isNewBest} config={config} team={team} onReplay={()=>{SFX.unlock();startGame(config.spec);}} onSwap={()=>openManualFor(config)} onNext={nextMission?()=>startGame({mission:nextMission}):null} onMenu={reset}/>}
+    {screen==="result"&&gameResult&&config&&<ResultsScreen result={gameResult.result} best={gameResult.best} isNewBest={gameResult.isNewBest} config={config} team={team} onReplay={()=>{SFX.unlock();startGame(config.spec);}} onSwap={()=>openManualFor(config)} onNext={nextMission?()=>startGame({mission:nextMission,fun:config.fun}):null} onMenu={reset}/>}
   </div>);
 }
 
