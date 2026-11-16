@@ -76,7 +76,7 @@
   </button>);
 
   const MysteryGuestModule = ({ onSuccess, onStrike }) => {
-    const [code] = useState(() => 1000 + Math.floor(Math.random() * 9000));
+    const [code] = useState(() => MANUAL.pick("mysteryGuest"));
     const [p] = useState(() => makeParty(code));
     const [sel, setSel] = useState([null, null, null, null]);
     const [asked, setAsked] = useState([]);
@@ -121,6 +121,15 @@
 
   /* --- Expert --- */
   const MysteryGuestManual = () => {
+    if (React.useContext(MANUAL.Print)) return (<div>
+      <p>The bomb maker is at the party. The Defuser asks the bomb yes or no questions. Only you can read the answers!</p>
+      <p><strong>Ask:</strong> "What is the party number?" Find the party below and read the witness notes.</p>
+      <p><strong>After each question, ask:</strong> "What is the answer code?" A code like <strong>2-KD</strong> means question 2, letters KD. Find the letters in the column for that question. Tell the Defuser the answer.</p>
+      {MANUAL.codebook("mysteryGuest").map((n) => (<div key={n} className="mk-entry"><h4>PARTY NUMBER {n}</h4>
+        <p><strong>Witness notes:</strong> {makeParty(n).notes.join(" ")}</p>
+        <table className="manual-table"><thead><tr><th>Answer</th>{Array.from({ length: BUDGET }, (_, q) => <th key={q}>Q{q + 1}</th>)}</tr></thead>
+          <tbody>{SENTENCES.map((s, sid) => <tr key={sid}><td style={{ textAlign: "left" }}>{s}</td>{Array.from({ length: BUDGET }, (_, q) => <td key={q}>{codeTable(n, q + 1)[sid]}</td>)}</tr>)}</tbody></table></div>))}
+    </div>);
     const [entry, setEntry] = useState(""), [party, setParty] = useState(null);
     const [codeIn, setCodeIn] = useState(""), [feed, setFeed] = useState([]), [err, setErr] = useState(null);
     const notes = party ? makeParty(party).notes : null;

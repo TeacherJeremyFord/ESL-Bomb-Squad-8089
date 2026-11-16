@@ -49,7 +49,7 @@
 
   /* --- Defuser --- */
   const AnimalRaceModule = ({ onSuccess, onStrike }) => {
-    const [code] = useState(() => 1000 + Math.floor(Math.random() * 9000));
+    const [code] = useState(() => MANUAL.pick("animalRace"));
     const [entries] = useState(() => makeEntries(code));
     const [races] = useState(makeRaces);
     const [no, setNo] = useState(0);
@@ -109,6 +109,19 @@
 
   /* --- Expert --- */
   const AnimalRaceManual = () => {
+    if (React.useContext(MANUAL.Print)) return (<div>
+      <p><strong>Ask:</strong> "What is the race number?" Find the entry list below.</p>
+      <div className="lr-rules">
+        <p>1. Ask: "What is the race? What is the team?"</p>
+        <p>2. Find the animal. Tell the Defuser: "The tiger! Zoo team!"</p>
+        <p>3. Press GO when that animal is in the gate.</p>
+        <p>4. If the NOT light is on, the first animal can <strong>not</strong> race. Press GO for the <strong>other</strong> animal.</p>
+      </div>
+      <h3 className="mk-book-title">Entry lists</h3>
+      <div className="mk-grid">{MANUAL.codebook("animalRace").map((n) => { const entries = makeEntries(n); return (<div key={n} className="mk-entry"><h4>RACE NUMBER {n}</h4>
+        <table className="manual-table rd-table"><thead><tr><th>Race</th><th>Zoo team</th><th>Farm team</th></tr></thead>
+          <tbody>{RACES.map((r) => <tr key={r}><th>{r}</th>{TEAMS.map((t) => { const e = entries[r + "|" + t]; return <td key={t}>{e.animal} (other: {e.other})</td>; })}</tr>)}</tbody></table></div>); })}</div>
+    </div>);
     const [entry, setEntry] = useState(""), [entries, setEntries] = useState(null);
     const show = () => { const n = parseInt(entry, 10); if (n >= 1000 && n <= 9999) setEntries(makeEntries(n)); };
     return (<div>

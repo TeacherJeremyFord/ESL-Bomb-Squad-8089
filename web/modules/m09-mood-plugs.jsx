@@ -85,7 +85,7 @@
   </button>);
 
   const MoodPlugsModule = ({ onSuccess, onStrike }) => {
-    const [code] = useState(() => 1000 + Math.floor(Math.random() * 9000));
+    const [code] = useState(() => MANUAL.pick("moodPlugs"));
     const [b] = useState(() => makeBoard(code));
     const [plugs, setPlugs] = useState({});
     const [held, setHeld] = useState(null);
@@ -121,12 +121,14 @@
 
   /* --- Expert --- */
   const MoodPlugsManual = () => {
+    const print = React.useContext(MANUAL.Print);
     const [entry, setEntry] = useState(""), [b, setB] = useState(null);
     const show = () => { const n = parseInt(entry, 10); if (n >= 1000 && n <= 9999) setB(makeBoard(n)); };
     return (<div>
+      {print ? <p><strong>Ask:</strong> "What is the plug number?" Find it in the plug book at the end of this section.</p> : <>
       <p><strong>Ask:</strong> "What is the plug number?" Write it here and press SHOW.</p>
       <div className="lr-start"><input inputMode="numeric" maxLength={4} value={entry} onChange={(e) => setEntry(e.target.value.replace(/\D/g, ""))} placeholder="0000" /><button onClick={show}>SHOW</button></div>
-      {b && <div className="mp-sentences">{SOCKETS.map((k) => <p key={k}><b style={{ color: CABLE[k] }}>{k}:</b> {text(b.sentences[k])}</p>)}</div>}
+      {b && <div className="mp-sentences">{SOCKETS.map((k) => <p key={k}><b style={{ color: CABLE[k] }}>{k}:</b> {text(b.sentences[k])}</p>)}</div>}</>}
       <div className="lr-rules">
         <p><strong>How to read it:</strong></p>
         <p><em>This</em> and <em>these</em> are in the <strong>front</strong>. <em>That</em> and <em>those</em> are in the <strong>back</strong>.</p>
@@ -137,6 +139,9 @@
       <table className="manual-table"><thead><tr><th>The Defuser says…</th><th>It is…</th></tr></thead><tbody>
         {[["red face / angry eyes", "angry"], ["water from the eye", "sad"], ["a small smile / OK hand", "fine"], ["thumbs up", "good"], ["star eyes and thumbs up", "great"], ["a big smile", "happy"]].map(([a, f]) => <tr key={f}><td>{a}</td><td><strong>{f}</strong></td></tr>)}
       </tbody></table>
+      {print && <><h3 className="mk-book-title">Plug book</h3>
+        {MANUAL.codebook("moodPlugs").map((n) => { const bb = makeBoard(n); return (<div key={n} className="mk-entry"><h4>PLUG NUMBER {n}</h4>
+          {SOCKETS.filter((k) => bb.sentences[k]).map((k) => <p key={k}><b style={{ color: CABLE[k] }}>{k}:</b> {text(bb.sentences[k])}</p>)}</div>); })}</>}
     </div>);
   };
 

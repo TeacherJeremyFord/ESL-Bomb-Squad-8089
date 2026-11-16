@@ -91,7 +91,7 @@
   </div>);
 
   const MidnightSnackModule = ({ onSuccess, onStrike }) => {
-    const [code] = useState(() => 1000 + Math.floor(Math.random() * 9000));
+    const [code] = useState(() => MANUAL.pick("midnightSnack"));
     const [h] = useState(() => makeHouse(code));
     const [at, setAt] = useState(h.start);
     const [entries, setEntries] = useState({ [h.start]: 1 });
@@ -143,6 +143,18 @@
     return <div className="ms-plan">{items}</div>;
   };
   const MidnightSnackManual = () => {
+    if (React.useContext(MANUAL.Print)) return (<div>
+      <p><strong>Ask:</strong> "What is the house number?" Find the house plan below.</p>
+      <p><strong>Where are you?</strong> At the start, the Defuser is not always in their bedroom. Ask: "Where are you? What is in the room? Is there a window? What color are the doors?"</p>
+      <div className="lr-rules">
+        <p>1. At night, everyone is sleeping. Do not walk <strong>into</strong> a room where the baby is sleeping.</p>
+        <p>2. You can walk into a room with the dog or the cat <strong>one</strong> time. Two times, and it wakes up.</p>
+        <p>3. You can walk into a room with father or mother, but not two times.</p>
+        <p>4. Take the cake. Then go back to your bedroom and go to bed.</p>
+      </div>
+      <h3 className="mk-book-title">House plans</h3>
+      <div className="mk-grid">{MANUAL.codebook("midnightSnack").map((n) => (<div key={n} className="mk-entry"><h4>HOUSE NUMBER {n}</h4><Plan h={makeHouse(n)} /></div>))}</div>
+    </div>);
     const [entry, setEntry] = useState("");
     const [h, setH] = useState(null);
     const start = () => { const n = parseInt(entry, 10); if (n >= 1000 && n <= 9999) setH(makeHouse(n)); };

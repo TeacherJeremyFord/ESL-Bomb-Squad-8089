@@ -151,13 +151,15 @@
   /* --- Expert --- */
   const FamilyPhotoManual = () => {
     const [tab, setTab] = useState("LIN");
+    const print = React.useContext(MANUAL.Print);
     return (<div>
       <p><strong>Ask:</strong> "What is the name on the photo?"</p>
       <p><strong>Rule 1:</strong> One person in the photo is not in this book. He or she is a friend, not family. Press the friend.</p>
       <p><strong>Rule 2:</strong> Then the bomb asks WHO. Press who he or she is in the family.</p>
+      {print ? Object.keys(FAMILIES).map((n) => <div key={n} className="fp-page mk-entry"><h4>THE {n} FAMILY</h4>{FAMILIES[n].map((p) => <p key={p.role}>{sentences(p)}</p>)}</div>) : <>
       <div className="fp-tabs">{Object.keys(FAMILIES).map((n) => (
         <button key={n} onClick={() => setTab(n)} className={`fp-tab ${n === tab ? "active" : ""}`}>{n}</button>))}</div>
-      <div className="fp-page"><h4>THE {tab} FAMILY</h4>{FAMILIES[tab].map((p) => <p key={p.role}>{sentences(p)}</p>)}</div>
+      <div className="fp-page"><h4>THE {tab} FAMILY</h4>{FAMILIES[tab].map((p) => <p key={p.role}>{sentences(p)}</p>)}</div></>}
     </div>);
   };
 

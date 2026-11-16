@@ -1,4 +1,4 @@
-# Modules M01–M12
+# Modules M01–M13
 
 Each file here is one bomb module from `docs/design/modules/` (design + build spec). The build specs
 were written for the old multi-device Python server; these are their single-page versions for the live
@@ -30,13 +30,29 @@ same round from a seeded RNG.
 | M09 Mood Plugs | PLUG NUMBER | the sentences |
 | M10 Gift Shop | SHOP NUMBER | the wallet |
 | M12 Animal Race Day | RACE NUMBER | the entry list |
+| M13 Teen Code | LOCK NUMBER | the five-number code, as words |
 
 M01, M03, M04, M05, M06 and M11 have fixed manuals (M06 and M11 also read the bomb's serial).
+
+Sync numbers come from a small **codebook** (`manual-kit.js`): the bomb only ever shows one of the
+`CODEBOOK_SIZE` numbers of the current `CYCLE`, and the printed manual lists the round for each of them.
+Use `MANUAL.pick("<module id>")` for a new sync number, never `Math.random()`.
+
+## Printed manual
+
+EXPERT MANUAL → **🖨 PRINT / SAVE PDF** prints what the filter shows (ALL, one mission, or THIS BOMB).
+Each `Manual()` must work on paper: read `React.useContext(MANUAL.Print)` and, when it is true, show
+every page/tab and the codebook instead of type-in boxes.
+
+Every printed page carries the **version** (`MANUAL.VERSION`, bump by hand on release) and the
+**MANUAL CODE**, a hash of the whole paper manual's text. The game shows the same code on the menu and
+on the bomb, so a printout that doesn't match is easy to spot. The code changes by itself when any rule,
+table or codebook changes; change `CYCLE` in `manual-kit.js` for new rounds (and then reprint).
 
 ## Tiers built
 
 M01 A2 · M02 A2 · M03 A2+ (one weather change) · M04 A2 · M05 B1 · M06 A2 · M07 B1 · M08 B1 · M09 B1 ·
-M10 A2 · M11 B1 · M12 B1 (gate 2.0 s instead of 1.5 s). Each file's header says what differs from the spec.
+M10 A2 · M11 B1 · M12 B1 (gate 2.0 s instead of 1.5 s) · M13 A2 + B1 "Twins" (400-list numbers; the lock number's parity picks the tier). Each file's header says what differs from the spec.
 
 ## Tests
 

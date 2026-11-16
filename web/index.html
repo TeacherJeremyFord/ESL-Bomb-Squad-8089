@@ -7,6 +7,7 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.23.9/babel.min.js"></script>
+<script src="manual-kit.js"></script>
 <script src="pixel.js"></script>
 <script src="sprites/monster.js"></script>
 <script src="sprites/people.js"></script>
@@ -36,6 +37,7 @@
 <script type="text/babel" src="modules/m10-gift-shop.jsx"></script>
 <script type="text/babel" src="modules/m11-monster-clinic.jsx"></script>
 <script type="text/babel" src="modules/m12-animal-race-day.jsx"></script>
+<script type="text/babel" src="modules/m13-teen-code.jsx"></script>
 </head>
 <body>
 <div id="root"></div>
@@ -193,11 +195,24 @@ const VendingMachineModule = ({ bomb=DEFAULT_BOMB, onSuccess, onStrike }) => {
 };
 
 /* SYMBOL KEYPAD */
-// Columns of PX.glyph names; the manual draws the same table.
-const SYMBOL_COLUMNS=[["copyright","star","empty-star","diamonds"],["phone","star","flower","diamonds"],["copyright","phone","flower","empty-star"],["star","copyright","phone","flower"]];
-const SymbolKeypadModule = ({ serialNumber, onSuccess, onStrike }) => {
-  const columns=SYMBOL_COLUMNS;
-  const [displayed] = useState(()=>{const col=columns[Math.floor(Math.random()*columns.length)];const shuffled=[...col].sort(()=>Math.random()-0.5);return{symbols:shuffled,correctOrder:col};});
+// Five lists of colored pictures, written as English words. The bomb shows four pictures from one list; they are pressed
+// in that list's order. Any two lists share at most three pictures, so four pictures always point to one list.
+// The manual prints these same lists as WORDS (never pictures), so the pictures have to be said in English.
+const SYMBOL_COLUMNS=[
+  ["red star","blue moon","yellow sun","green flower","blue star","red sun"],
+  ["yellow moon","red star","green sun","blue flower","yellow sun","green star"],
+  ["blue moon","yellow flower","red moon","green flower","yellow star","blue sun"],
+  ["green star","red flower","blue star","yellow moon","red sun","green moon"],
+  ["blue flower","yellow star","red moon","green sun","red flower","blue sun"],
+];
+const symbolSrc=(item)=>{const [color,shape]=item.split(" ");return PX.glyph(shape,color);};
+const SymbolKeypadModule = ({ onSuccess, onStrike }) => {
+  const [displayed] = useState(()=>{
+    for(;;){const ci=Math.floor(Math.random()*SYMBOL_COLUMNS.length),col=SYMBOL_COLUMNS[ci];
+      const four=[...col].sort(()=>Math.random()-0.5).slice(0,4);
+      if(SYMBOL_COLUMNS.some((c,i)=>i!==ci&&four.every(x=>c.includes(x))))continue; // never true with these lists; kept in case the lists are edited
+      return{symbols:[...four].sort(()=>Math.random()-0.5),correctOrder:col.filter(x=>four.includes(x))};}
+  });
   const [pressed,setPressed] = useState([]);
   const [solved,setSolved] = useState(false);
   const handlePress = (sym) => {
@@ -206,25 +221,64 @@ const SymbolKeypadModule = ({ serialNumber, onSuccess, onStrike }) => {
     if(sym===nextCorrect){const np=[...pressed,sym];setPressed(np);if(np.length===4){setSolved(true);onSuccess();}}
     else{onStrike();setPressed([]);}
   };
-  return (<div className="module-content"><h3>🔣 SYMBOL KEYPAD</h3><p className="module-hint">Press symbols in the correct order</p>
-    <div style={{display:"flex",justifyContent:"center",gap:"0.5rem",marginBottom:"0.75rem"}}>{[0,1,2,3].map(i=>(<span key={i} style={{width:"28px",height:"28px",display:"flex",alignItems:"center",justifyContent:"center",background:"#1a1a2e",border:`2px solid ${pressed[i]?"#4caf50":"#333"}`,borderRadius:"6px",color:pressed[i]?"#4caf50":"#555",fontSize:"0.9rem"}}>{pressed[i]?<img className="pixel-art" alt={pressed[i]} src={PX.glyph(pressed[i])} width={20} height={20}/>:"?"}</span>))}</div>
-    <div className="options-grid">{displayed.symbols.map(s=>(<button key={s} onClick={()=>handlePress(s)} disabled={solved||pressed.includes(s)} className={`symbol-btn ${pressed.includes(s)?"correct":""}`}><img className="pixel-art" alt={s} src={PX.glyph(s)} width={48} height={48}/></button>))}</div></div>);
+  return (<div className="module-content"><h3>🔣 SYMBOL KEYPAD</h3><p className="module-hint">Press the pictures in the correct order</p>
+    <div style={{display:"flex",justifyContent:"center",gap:"0.5rem",marginBottom:"0.75rem"}}>{[0,1,2,3].map(i=>(<span key={i} style={{width:"28px",height:"28px",display:"flex",alignItems:"center",justifyContent:"center",background:"#1a1a2e",border:`2px solid ${pressed[i]?"#4caf50":"#333"}`,borderRadius:"6px",color:"#555",fontSize:"0.9rem"}}>{pressed[i]?<img className="pixel-art" alt={pressed[i]} src={symbolSrc(pressed[i])} width={20} height={20}/>:"?"}</span>))}</div>
+    <div className="options-grid">{displayed.symbols.map(s=>(<button key={s} onClick={()=>handlePress(s)} disabled={solved||pressed.includes(s)} className={`symbol-btn ${pressed.includes(s)?"correct":""}`} style={{display:"flex",flexDirection:"column",alignItems:"center",gap:"0.2rem"}}><img className="pixel-art" alt={s} src={symbolSrc(s)} width={48} height={48}/><span style={{fontSize:"0.7rem",color:"#ccc"}}>{s}</span></button>))}</div></div>);
 };
 
 /* NUMBER KEYPAD */
-const NumberKeypadModule = ({ serialNumber, onSuccess, onStrike }) => {
-  const ascending = getFirstLetter(serialNumber).charCodeAt(0)<=77;
-  const correctOrder = ascending?"0123456789":"9876543210";
-  const [input,setInput] = useState("");
+// The bomb shows three numbers (1–12) as digits. The Defuser says them; the Expert taps the same three NUMBER WORDS in the
+// manual, and the manual answers with two number words to press. The answer comes from the three numbers (keypadAnswer),
+// so there is no code to share, the Expert is needed every round, and a misheard number gives a wrong answer.
+const KEYPAD_WORDS=["","one","two","three","four","five","six","seven","eight","nine","ten","eleven","twelve"];
+const keypadAnswer=([a,b,c])=>[((a*7+b*3+c*5+1)%12)+1,((a*5+b*11+c*2+6)%12)+1];
+const NumberKeypadModule = ({ onSuccess, onStrike }) => {
+  const roll=()=>Array.from({length:3},()=>1+Math.floor(Math.random()*12));
+  const [shown,setShown] = useState(roll);
+  const [input,setInput] = useState([]);
   const [solved,setSolved] = useState(false);
-  const handlePress = (num) => {
-    if(solved)return; const next=input+num; setInput(next);
-    if(next.length===10){if(next===correctOrder){setSolved(true);onSuccess();}else{onStrike();setInput("");}}
+  const handlePress = (n) => {
+    if(solved)return; const next=[...input,n];
+    if(next.length<2){setInput(next);return;}
+    const ans=keypadAnswer(shown);
+    if(next[0]===ans[0]&&next[1]===ans[1]){setInput(next);setSolved(true);onSuccess();}
+    else{onStrike();setInput([]);setShown(roll());} // new numbers after a mistake, so the answer cannot be found by trying keys
   };
-  return (<div className="module-content"><h3>🔢 NUMBER KEYPAD</h3><p className="module-hint">Enter all digits in the correct order</p>
-    <div className="keypad-display">{input||"_ _ _ _ _ _ _ _ _ _"}</div>
-    <div className="keypad-grid">{[1,2,3,4,5,6,7,8,9,0].map(n=>(<button key={n} onClick={()=>handlePress(String(n))} disabled={solved||input.includes(String(n))} className={`keypad-btn ${input.includes(String(n))?"used":""}`}>{n}</button>))}</div>
-    <button onClick={()=>setInput("")} className="clear-btn">Clear</button></div>);
+  return (<div className="module-content"><h3>🔢 NUMBER KEYPAD</h3><p className="module-hint">Say the three numbers. Then press two.</p>
+    <div className="keypad-display" style={{letterSpacing:"0.3em"}}>{shown.join(" · ")}</div>
+    <div style={{display:"flex",justifyContent:"center",gap:"0.4rem",margin:"0.5rem 0"}}>{[0,1].map(i=>(<span key={i} style={{minWidth:"2.6rem",padding:"0.25rem",textAlign:"center",background:"#0a1520",border:`2px solid ${solved?"#4caf50":"#333"}`,borderRadius:"6px",color:"#0ff",fontFamily:"'Orbitron',sans-serif"}}>{input[i]||"?"}</span>))}</div>
+    <div className="keypad-grid" style={{gridTemplateColumns:"repeat(4,1fr)"}}>{[1,2,3,4,5,6,7,8,9,10,11,12].map(n=>(<button key={n} onClick={()=>handlePress(n)} disabled={solved} className="keypad-btn">{n}</button>))}</div>
+    <button onClick={()=>!solved&&setInput([])} className="clear-btn">Clear</button></div>);
+};
+/* Paper version: keypadAnswer is a sum, so it splits into one points table per answer.
+   Answer = the three points added up, minus 12 until it is 12 or less (checked against keypadAnswer for all 1728 inputs). */
+const KEYPAD_POINTS=[[a=>7*a%12,b=>3*b%12,c=>(5*c+1)%12+1],[a=>5*a%12,b=>11*b%12,c=>(2*c+6)%12+1]];
+const keypadFromPoints=(nums,k)=>{let s=KEYPAD_POINTS[k].reduce((t,f,i)=>t+f(nums[i]),0);while(s>12)s-=12;return s;};
+const NumberKeypadPrint = () => {
+  const ex=[4,9,2], ans=keypadAnswer(ex);
+  return (<div>
+    <p><strong>Ask:</strong> "What are the three numbers?" Write them down in order.</p>
+    <p><strong>Step 1:</strong> In Table A, find the 1st number in the "1st" column, the 2nd number in the "2nd" column and the 3rd number in the "3rd" column. Add the three points.</p>
+    <p><strong>Step 2:</strong> If the total is more than 12, take away 12. Still more than 12? Take away 12 again. This is the <strong>first</strong> number to press.</p>
+    <p><strong>Step 3:</strong> Do the same with Table B. This is the <strong>second</strong> number to press.</p>
+    <div className="mk-grid">{["A","B"].map((L,k)=>(<table key={L} className="manual-table"><thead><tr><th>Table {L}</th><th>1st</th><th>2nd</th><th>3rd</th></tr></thead><tbody>
+      {KEYPAD_WORDS.slice(1).map((w,i)=>(<tr key={w}><td><strong>{w}</strong></td>{KEYPAD_POINTS[k].map((f,j)=><td key={j}>{f(i+1)}</td>)}</tr>))}</tbody></table>))}</div>
+    <p style={{color:"#888",fontStyle:"italic"}}>Example: {ex.map(n=>KEYPAD_WORDS[n]).join(", ")}. Table A: {KEYPAD_POINTS[0].map((f,i)=>f(ex[i])).join(" + ")} = {KEYPAD_POINTS[0].reduce((t,f,i)=>t+f(ex[i]),0)} → {KEYPAD_WORDS[ans[0]]}. Table B: {KEYPAD_POINTS[1].map((f,i)=>f(ex[i])).join(" + ")} = {KEYPAD_POINTS[1].reduce((t,f,i)=>t+f(ex[i]),0)} → {KEYPAD_WORDS[ans[1]]}. Press {KEYPAD_WORDS[ans[0]].toUpperCase()}, then {KEYPAD_WORDS[ans[1]].toUpperCase()}.</p>
+    <p style={{color:"#888",fontStyle:"italic"}}>After a mistake the bomb shows three new numbers. Start again.</p>
+  </div>);
+};
+const NumberKeypadManual = () => {
+  if(React.useContext(MANUAL.Print)) return <NumberKeypadPrint/>;
+  const [picked,setPicked] = useState([]);
+  const ans = picked.length===3?keypadAnswer(picked):null;
+  return (<div>
+    <p><strong>Ask:</strong> "What are the three numbers?"</p>
+    <p><strong>Step 1:</strong> Tap the three numbers here, in the same order.</p>
+    <div style={{display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:"0.3rem",margin:"0.5rem 0"}}>{KEYPAD_WORDS.slice(1).map((w,i)=>(<button key={w} className="manual-key" disabled={picked.length>=3} onClick={()=>setPicked([...picked,i+1])}>{w}</button>))}</div>
+    <p className="manual-readout">{picked.length?picked.map(n=>KEYPAD_WORDS[n]).join(", "):"—"} <button className="manual-key" style={{marginLeft:"0.5rem"}} onClick={()=>setPicked([])}>CLEAR</button></p>
+    {ans&&<p className="manual-answer"><strong>Step 2:</strong> Tell the Defuser: "Press <strong>{KEYPAD_WORDS[ans[0]].toUpperCase()}</strong>, then <strong>{KEYPAD_WORDS[ans[1]].toUpperCase()}</strong>."</p>}
+    <p style={{color:"#888",fontStyle:"italic"}}>After a mistake the bomb shows three new numbers. Press CLEAR and start again.</p>
+  </div>);
 };
 
 /* BIG BUTTON */
@@ -263,23 +317,31 @@ const BigButtonModule = ({ bomb=DEFAULT_BOMB, onSuccess, onStrike }) => {
 };
 
 /* SLIDERS */
-const SlidersModule = ({ serialNumber, onSuccess, onStrike }) => {
+// Each slider starts on a number. A light on the panel picks one row of the manual's table, and the row says how far
+// each slider moves ("two more", "one less", "the same"). The Defuser reports the light and the three start numbers.
+const SLIDER_LIGHTS={green:"#2ecc71",white:"#ecf0f1",pink:"#f59ab8",orange:"#f39a2b"};
+const SLIDER_MOVES={green:[2,0,-1],white:[0,3,-2],pink:[-1,2,0],orange:[-3,1,2]}; // red, blue, yellow
+const moveWords=(d)=>d===0?"the same":`${["","one","two","three"][Math.abs(d)]} ${d>0?"more":"less"}`;
+const SlidersModule = ({ onSuccess, onStrike }) => {
   const sliderColors=["red","blue","yellow"];
   const colorHex={red:"#e74c3c",blue:"#3498db",yellow:"#f1c40f"};
-  const digits = getAllDigits(serialNumber);
-  const targets = sliderColors.map((_,i)=>parseInt(digits[i])||0);
-  const [values,setValues] = useState([5,5,5]);
+  const [light] = useState(()=>Object.keys(SLIDER_LIGHTS)[Math.floor(Math.random()*4)]);
+  const [starts] = useState(()=>sliderColors.map(()=>3+Math.floor(Math.random()*4))); // 3–6, so every move stays inside 0–9
+  const targets = starts.map((v,i)=>v+SLIDER_MOVES[light][i]);
+  const [values,setValues] = useState(starts);
   const [solved,setSolved] = useState(false);
   const handleChange = (idx,val) => { if(solved)return; const nv=[...values];nv[idx]=val;setValues(nv); };
   const handleSubmit = () => {
     if(solved)return;
     if(values.every((v,i)=>v===targets[i])){setSolved(true);onSuccess();}else onStrike();
   };
-  return (<div className="module-content"><h3>🎚️ SLIDERS</h3><p className="module-hint">Set each slider to the correct value</p>
+  return (<div className="module-content"><h3>🎚️ SLIDERS</h3><p className="module-hint">Move each slider to the correct number</p>
+    <div style={{display:"flex",alignItems:"center",justifyContent:"center",gap:"0.6rem",marginBottom:"0.75rem"}}><span style={{fontSize:"0.75rem",color:"#888"}}>LIGHT</span><span aria-label={`${light} light`} style={{width:"28px",height:"28px",borderRadius:"50%",background:SLIDER_LIGHTS[light],boxShadow:`0 0 14px ${SLIDER_LIGHTS[light]}`,border:"2px solid #111"}}></span></div>
     <div style={{display:"flex",flexDirection:"column",gap:"0.75rem"}}>
       {sliderColors.map((c,i)=>(<div key={c} style={{display:"flex",alignItems:"center",gap:"0.5rem"}}>
         <span style={{width:"16px",height:"16px",borderRadius:"50%",background:colorHex[c],flexShrink:0}}></span>
-        <input type="range" min={0} max={9} value={values[i]} onChange={e=>handleChange(i,parseInt(e.target.value))} disabled={solved} style={{flex:1,accentColor:colorHex[c]}} />
+        <span style={{fontSize:"0.65rem",color:"#888",width:"3.4rem",flexShrink:0}}>START {starts[i]}</span>
+        <input type="range" min={0} max={9} value={values[i]} onChange={e=>handleChange(i,parseInt(e.target.value))} disabled={solved} style={{flex:1,minWidth:0,accentColor:colorHex[c]}} />
         <span style={{color:"#0ff",fontFamily:"'Orbitron',sans-serif",fontSize:"1rem",width:"1.5rem",textAlign:"center"}}>{values[i]}</span>
       </div>))}
     </div>
@@ -287,7 +349,15 @@ const SlidersModule = ({ serialNumber, onSuccess, onStrike }) => {
 };
 
 /* CRACK THE CODE */
-const CrackTheCodeModule = ({ serialNumber, onSuccess, onStrike }) => {
+// The Defuser guesses a 3-color code. The bomb answers each guess with a 4-digit CLUE NUMBER that only the manual can read:
+// the Expert types it in and gets the clue in English. So the clues arrive one guess at a time, on the Expert's side,
+// and the Expert has to keep notes of the guesses to work the code out.
+// Clue number = a random first digit, the two counts hidden behind it, and a check digit (so a mistyped number is almost always refused).
+const clueCheck=(s,a,b)=>(s*3+a*7+b+4)%10;
+const clueEncode=(right,near)=>{const s=1+Math.floor(Math.random()*9),a=(right+3*s+2)%10,b=(near+7*s+5)%10;return `${s}${a}${b}${clueCheck(s,a,b)}`;};
+const clueDecode=(code)=>{if(!/^[1-9][0-9]{3}$/.test(code))return null;const [s,a,b,k]=[...code].map(Number);if(k!==clueCheck(s,a,b))return null;const right=((a-3*s-2)%10+10)%10,near=((b-7*s-5)%10+10)%10;return right+near<=3?{right,near}:null;};
+const CRACK_FREE_GUESSES=5;
+const CrackTheCodeModule = ({ onSuccess, onStrike }) => {
   const colors=["red","green","yellow","blue","white"];
   const colorHex={red:"#e74c3c",green:"#2ecc71",yellow:"#f1c40f",blue:"#3498db",white:"#ecf0f1"};
   const [code] = useState(()=>Array.from({length:3},()=>colors[Math.floor(Math.random()*5)]));
@@ -295,32 +365,68 @@ const CrackTheCodeModule = ({ serialNumber, onSuccess, onStrike }) => {
   const [attempts,setAttempts] = useState([]);
   const [solved,setSolved] = useState(false);
   const getClues = (g) => {
-    let correct=0,misplaced=0;const cCopy=[...code];const gCopy=[...g];
-    for(let i=0;i<3;i++)if(gCopy[i]===cCopy[i]){correct++;cCopy[i]=null;gCopy[i]=null;}
-    for(let i=0;i<3;i++)if(gCopy[i]){const j=cCopy.indexOf(gCopy[i]);if(j!==-1){misplaced++;cCopy[j]=null;}}
-    return{correct,misplaced};
+    let right=0,near=0;const cCopy=[...code];const gCopy=[...g];
+    for(let i=0;i<3;i++)if(gCopy[i]===cCopy[i]){right++;cCopy[i]=null;gCopy[i]=null;}
+    for(let i=0;i<3;i++)if(gCopy[i]){const j=cCopy.indexOf(gCopy[i]);if(j!==-1){near++;cCopy[j]=null;}}
+    return{right,near};
   };
   const handleSubmit = () => {
     if(solved)return; const clues=getClues(guess);
-    setAttempts(a=>[...a,{guess:[...guess],clues}]);
-    if(clues.correct===3){setSolved(true);onSuccess();}
-    else if(attempts.length>=4)onStrike();
+    if(clues.right===3){setAttempts(a=>[...a,{guess:[...guess],clue:"✓"}]);setSolved(true);onSuccess();return;}
+    setAttempts(a=>[...a,{guess:[...guess],clue:clueEncode(clues.right,clues.near)}]);
+    if(attempts.length>=CRACK_FREE_GUESSES)onStrike(); // guesses 1–5 are free
   };
   const cycleColor = (idx) => {
     if(solved)return; const ng=[...guess]; const ci=colors.indexOf(ng[idx]); ng[idx]=colors[(ci+1)%colors.length]; setGuess(ng);
   };
+  const left=CRACK_FREE_GUESSES-attempts.length;
   return (<div className="module-content"><h3>🔐 CRACK THE CODE</h3><p className="module-hint">Guess the 3-color code!</p>
     <div style={{display:"flex",flexDirection:"column",gap:"0.4rem",marginBottom:"0.5rem"}}>
       {attempts.map((a,i)=>(<div key={i} style={{display:"flex",alignItems:"center",gap:"0.5rem"}}>
+        <span style={{fontSize:"0.7rem",color:"#888",width:"1rem"}}>{i+1}</span>
         <div style={{display:"flex",gap:"0.25rem"}}>{a.guess.map((c,j)=>(<span key={j} style={{width:"20px",height:"20px",borderRadius:"3px",background:colorHex[c]}}></span>))}</div>
-        <span style={{fontSize:"0.7rem",color:"#4caf50"}}>●{a.clues.correct}</span>
-        <span style={{fontSize:"0.7rem",color:"#f1c40f"}}>◐{a.clues.misplaced}</span>
+        <span style={{fontSize:"0.65rem",color:"#888"}}>CLUE</span><span style={{fontFamily:"'Orbitron',sans-serif",color:"#0ff",letterSpacing:"2px"}}>{a.clue}</span>
       </div>))}
     </div>
     <div style={{display:"flex",gap:"0.3rem",justifyContent:"center",marginBottom:"0.5rem"}}>
       {guess.map((c,i)=>(<button key={i} onClick={()=>cycleColor(i)} disabled={solved} style={{width:"50px",height:"50px",borderRadius:"6px",background:colorHex[c],border:"2px solid #555",cursor:"pointer",fontSize:"0.6rem",color:c==="yellow"||c==="white"?"#333":"#fff"}}>{c}</button>))}
     </div>
-    <button onClick={handleSubmit} disabled={solved} className={`submit-btn ${solved?"correct":""}`}>{solved?"✓ CRACKED":"GUESS ({5-attempts.length} left)"}</button></div>);
+    <button onClick={handleSubmit} disabled={solved} className={`submit-btn ${solved?"correct":""}`}>{solved?"✓ CRACKED":left>0?`GUESS (${left} free)`:"GUESS (a wrong guess is a mistake!)"}</button></div>);
+};
+/* Paper version: clueDecode read as two tables (first digit × second digit, first digit × third digit). The check digit is skipped on paper. */
+const CrackTheCodePrint = () => {
+  const cell=(v)=>v<=3?v:"–";
+  return (<div>
+    <p>The Defuser guesses a secret code of <strong>3 colors</strong>. The colors are red, green, yellow, blue and white. A color can be used more than once.</p>
+    <p><strong>After each guess, ask:</strong> "What colors did you guess?" and "What is the clue number?" Write both on paper.</p>
+    <p><strong>Read the clue number</strong> (4 digits; the last digit is not used):</p>
+    <p>• <strong>Table 1:</strong> the row is the 1st digit, the column is the 2nd digit → how many colors are in the <strong>right place</strong>.</p>
+    <p>• <strong>Table 2:</strong> the row is the 1st digit, the column is the 3rd digit → how many are the <strong>right color, but in the wrong place</strong>.</p>
+    {[["Table 1: right place",(s,d)=>((d-3*s-2)%10+10)%10],["Table 2: right color, wrong place",(s,d)=>((d-7*s-5)%10+10)%10]].map(([title,f])=>(<table key={title} className="manual-table"><thead><tr><th colSpan={11}>{title}</th></tr><tr><th>1st ↓ / digit →</th>{[0,1,2,3,4,5,6,7,8,9].map(d=><th key={d}>{d}</th>)}</tr></thead><tbody>
+      {[1,2,3,4,5,6,7,8,9].map(s=>(<tr key={s}><td><strong>{s}</strong></td>{[0,1,2,3,4,5,6,7,8,9].map(d=><td key={d}>{cell(f(s,d))}</td>)}</tr>))}</tbody></table>))}
+    <p style={{color:"#888",fontStyle:"italic"}}>A "–" means you heard the number wrong. Ask again.</p>
+    <p><strong>Your job:</strong> use the clues to choose the next guess. The first {CRACK_FREE_GUESSES} guesses are free. After that, a wrong guess is a mistake.</p>
+    <p style={{color:"#888",fontStyle:"italic"}}>Tip: start with three different colors.</p>
+  </div>);
+};
+const CrackTheCodeManual = () => {
+  if(React.useContext(MANUAL.Print)) return <CrackTheCodePrint/>;
+  const [entry,setEntry] = useState(""); const [clues,setClues] = useState([]); const [bad,setBad] = useState(false);
+  const read = (e) => { e.preventDefault(); const c=clueDecode(entry); if(!c){setBad(true);return;} setBad(false);setClues([...clues,{code:entry,...c}]);setEntry(""); };
+  return (<div>
+    <p>The Defuser guesses a secret code of <strong>3 colors</strong>. The colors are red, green, yellow, blue and white. A color can be used more than once.</p>
+    <p><strong>After each guess, ask:</strong> "What colors did you guess?" and "What is the clue number?"</p>
+    <p><strong>Write the guess on paper.</strong> Then type the clue number here:</p>
+    <form onSubmit={read} style={{display:"flex",gap:"0.4rem",margin:"0.5rem 0"}}>
+      <input value={entry} onChange={e=>setEntry(e.target.value.replace(/[^0-9]/g,"").slice(0,4))} inputMode="numeric" placeholder="0000" className="manual-input"/>
+      <button type="submit" className="manual-key" disabled={entry.length!==4}>READ CLUE</button>
+      {clues.length>0&&<button type="button" className="manual-key" onClick={()=>{setClues([]);setBad(false);}}>NEW GAME</button>}
+    </form>
+    {bad&&<p style={{color:"#c0392b"}}>That is not a clue number. Ask again.</p>}
+    {clues.map((c,i)=>(<p key={i} className="manual-answer">Guess {i+1}: <strong>{c.right}</strong> in the right place. <strong>{c.near}</strong> right color, but in the wrong place.</p>))}
+    <p><strong>Your job:</strong> use the clues to choose the next guess. The first {CRACK_FREE_GUESSES} guesses are free. After that, a wrong guess is a mistake.</p>
+    <p style={{color:"#888",fontStyle:"italic"}}>Tip: start with three different colors.</p>
+  </div>);
 };
 
 /* WORD BUTTONS */
@@ -336,39 +442,51 @@ const WordButtonsModule = ({ bomb=DEFAULT_BOMB, onSuccess, onStrike }) => {
 };
 
 /* MEMORY */
-const MemoryModule = ({ serialNumber, onSuccess, onStrike }) => {
-  const labels = ["ONE","TWO","THREE","FOUR"];
+// Four stages. Each stage shows a number (1–4) and four word buttons in a new order. The manual's table says what to press;
+// from Stage 2 on, most answers point back ("same place as Stage 1", "same word as Stage 2"), so the Expert has to
+// write down the place and the word of every press. MEMORY_RULES[stage][number on screen - 1].
+const MEMORY_WORDS=["ONE","TWO","THREE","FOUR"];
+const MEMORY_RULES=[
+  [{place:2},{place:2},{place:3},{place:4}],
+  [{word:"FOUR"},{samePlace:1},{place:1},{samePlace:1}],
+  [{sameWord:2},{sameWord:1},{place:3},{word:"FOUR"}],
+  [{samePlace:1},{place:1},{samePlace:2},{sameWord:3}],
+];
+const memoryRuleText=(r)=>r.place?`${["","1st","2nd","3rd","4th"][r.place]} button`:r.word?`the word ${r.word}`:r.samePlace?`same place as Stage ${r.samePlace}`:`same word as Stage ${r.sameWord}`;
+const MemoryModule = ({ onSuccess, onStrike }) => {
+  const STAGES=MEMORY_RULES.length;
+  const deal=()=>({display:Math.floor(Math.random()*4)+1,order:[...MEMORY_WORDS].sort(()=>Math.random()-0.5)});
   const [stage,setStage] = useState(0);
-  const [history,setHistory] = useState([]);
-  const [display,setDisplay] = useState(()=>Math.floor(Math.random()*4)+1);
-  const [buttonOrder] = useState(()=>[...labels].sort(()=>Math.random()-0.5));
+  const [history,setHistory] = useState([]); // per finished stage: {place (0-3), word}
+  const [round,setRound] = useState(deal);
   const [solved,setSolved] = useState(false);
-  // Simple rule: stage display tells you which POSITION to press (1-indexed)
-  const correctIdx = Math.min(display-1,3);
+  const rule=MEMORY_RULES[stage][round.display-1];
+  const correctIdx = rule.place?rule.place-1:rule.word?round.order.indexOf(rule.word):rule.samePlace?history[rule.samePlace-1].place:round.order.indexOf(history[rule.sameWord-1].word);
   const handlePress = (idx) => {
     if(solved)return;
-    if(idx===correctIdx){
-      const nh=[...history,{display,pressed:idx,label:buttonOrder[idx]}];setHistory(nh);
-      if(stage>=4){setSolved(true);onSuccess();}
-      else{setStage(s=>s+1);setDisplay(Math.floor(Math.random()*4)+1);}
-    } else onStrike();
+    if(idx!==correctIdx){onStrike();return;}
+    setHistory([...history,{place:idx,word:round.order[idx]}]);
+    if(stage>=STAGES-1){setSolved(true);onSuccess();}
+    else{setStage(stage+1);setRound(deal());}
   };
-  return (<div className="module-content"><h3>🧠 MEMORY</h3><p className="module-hint">Stage {stage+1} of 5</p>
-    <div style={{textAlign:"center",marginBottom:"0.5rem"}}><span style={{fontFamily:"'Orbitron',sans-serif",fontSize:"2rem",color:"#0ff"}}>{display}</span></div>
-    <div style={{display:"flex",gap:"0.4rem"}}>{buttonOrder.map((label,i)=>(<button key={label} onClick={()=>handlePress(i)} disabled={solved} className="option-btn" style={{flex:1,fontSize:"0.7rem",padding:"0.6rem 0.3rem"}}>{label}</button>))}</div>
-    <div style={{display:"flex",justifyContent:"center",gap:"0.25rem",marginTop:"0.5rem"}}>{[0,1,2,3,4].map(i=>(<span key={i} style={{width:"10px",height:"10px",borderRadius:"50%",background:i<=stage?"#4caf50":"#333"}}></span>))}</div></div>);
+  return (<div className="module-content"><h3>🧠 MEMORY</h3><p className="module-hint">Stage {Math.min(stage+1,STAGES)} of {STAGES}</p>
+    <div style={{textAlign:"center",marginBottom:"0.5rem"}}><span style={{fontFamily:"'Orbitron',sans-serif",fontSize:"2rem",color:"#0ff"}}>{round.display}</span></div>
+    <div style={{display:"flex",gap:"0.4rem"}}>{round.order.map((label,i)=>(<button key={label} onClick={()=>handlePress(i)} disabled={solved} className="option-btn" style={{flex:1,fontSize:"0.7rem",padding:"0.6rem 0.3rem"}}>{label}</button>))}</div>
+    <div style={{display:"flex",justifyContent:"center",gap:"0.25rem",marginTop:"0.5rem"}}>{MEMORY_RULES.map((_,i)=>(<span key={i} style={{width:"10px",height:"10px",borderRadius:"50%",background:i<stage||solved?"#4caf50":i===stage?"#ffcc00":"#333"}}></span>))}</div></div>);
 };
 
 /* SYMBOL PANEL */
+// One plant, one animal, one food and one other thing. No picture fits two groups: the animals are ones nobody eats
+// (no fish, chicken or pig), and the foods are cooked dishes, not fruit (fruit grows on plants).
+const PANEL_POOLS={plant:["tree","cactus","flower"],animal:["cat","fox","dog","bird","rabbit","monkey","tiger","frog"],food:["pizza","hamburger","cake","bread","sandwich","rice"],other:["fire","gem","star"]};
+const panelSrc=(kind,name)=>kind==="animal"&&name!=="fox"?PX.animal(name):PX.symbol(name);
 const SymbolPanelModule = ({ serialNumber, onSuccess, onStrike }) => {
-  const symbolSets=[{symbols:["apple","tree","fish","fire"],plant:"tree",animal:"fish",food:"apple"},{symbols:["cat","flower","pizza","star"],plant:"flower",animal:"cat",food:"pizza"},{symbols:["fox","cactus","hamburger","gem"],plant:"cactus",animal:"fox",food:"hamburger"}];
-  const [set] = useState(()=>symbolSets[Math.floor(Math.random()*symbolSets.length)]);
+  const [shuffled] = useState(()=>Object.entries(PANEL_POOLS).map(([kind,names])=>({kind,name:names[Math.floor(Math.random()*names.length)]})).sort(()=>Math.random()-0.5));
   const fd = getFirstDigit(serialNumber);
-  const correct = fd<=3?set.plant:fd<=6?set.animal:set.food;
-  const [shuffled] = useState(()=>[...set.symbols].sort(()=>Math.random()-0.5));
+  const correct = fd<=3?"plant":fd<=6?"animal":"food";
   const [solved,setSolved] = useState(false);
   return (<div className="module-content"><h3>🎨 SYMBOL PANEL</h3><p className="module-hint">Press the correct symbol</p>
-    <div className="options-grid">{shuffled.map(s=>(<button key={s} onClick={()=>{if(solved)return;if(s===correct){setSolved(true);onSuccess();}else onStrike();}} disabled={solved} className={`symbol-btn ${solved&&s===correct?"correct":""}`}><img className="pixel-art" alt={s} src={PX.symbol(s)} width={48} height={48}/></button>))}</div></div>);
+    <div className="options-grid">{shuffled.map(s=>(<button key={s.name} onClick={()=>{if(solved)return;if(s.kind===correct){setSolved(true);onSuccess();}else onStrike();}} disabled={solved} className={`symbol-btn ${solved&&s.kind===correct?"correct":""}`}><img className="pixel-art" alt={s.name} src={panelSrc(s.kind,s.name)} width={48} height={48}/></button>))}</div></div>);
 };
 
 /* COLOR SWITCHBOARD */
@@ -514,12 +632,15 @@ const ModuleWrapper = ({ module, serialNumber, bomb, onComplete, onStrike, locke
 /* manual section id -> module id, for the 16 built-in modules (M01–M12 sections already use the module id) */
 const SECTION_MODULE = {wires:"colorWires",user:"userName",monster:"monsterLab",guess:"guessWho",vending:"vendingMachine",symbol:"symbolKeypad",keypad:"numberKeypad",bigbtn:"bigButton",sliders:"sliders",crack:"crackTheCode",word:"wordButtons",mem:"memory",sympanel:"symbolPanel",switch:"colorSwitchboard",world:"worldClock",combo:"combinationLock"};
 /* `only` = list of module ids; when given, the manual shows just those sections */
-const ExpertManual = ({only}) => {
+/* `print` = the paper version: every section open, every page/tab shown, codebooks instead of type-in boxes. */
+const ExpertManual = ({only,print}) => {
   const [openSection,setOpenSection] = useState(null);
   const toggle = (id) => setOpenSection(o=>o===id?null:id);
-  const S = ({id,title,children}) => only&&!only.includes(SECTION_MODULE[id]||id) ? null : (<div className="manual-section"><h2 onClick={()=>toggle(id)} style={{cursor:"pointer"}}>{title} {openSection===id?"▼":"▶"}</h2>{openSection===id&&<div>{children}</div>}</div>);
-  return (<div className="manual-page-content">
-    <h1 className="manual-title">📖 BOMB DEFUSAL MANUAL</h1><p className="manual-subtitle">CLASSIFIED — For Experts Only · Tap a section to expand</p>
+  const S = ({id,title,children}) => only&&!only.includes(SECTION_MODULE[id]||id) ? null
+    : print ? (<div className="manual-section"><h2>{title}</h2><div>{children}</div></div>)
+    : (<div className="manual-section"><h2 onClick={()=>toggle(id)} style={{cursor:"pointer"}}>{title} {openSection===id?"▼":"▶"}</h2>{openSection===id&&<div>{children}</div>}</div>);
+  return (<MANUAL.Print.Provider value={!!print}><div className="manual-page-content">
+    {!print&&<><h1 className="manual-title">📖 BOMB DEFUSAL MANUAL</h1><p className="manual-subtitle">CLASSIFIED — For Experts Only · Tap a section to expand</p></>}
     <div className="manual-section"><h2>💣 The Bomb</h2><div>
       <p>Some rules ask about the bomb. You cannot see it. Ask the Defuser:</p>
       <p>• "What <strong>color</strong> is the bomb?" (red, blue, green, yellow or purple)</p>
@@ -603,20 +724,17 @@ const ExpertManual = ({only}) => {
     </S>
 
     <S id="symbol" title="🔣 Symbol Keypad">
-      <p><strong>Ask:</strong> "What symbols do you see on the buttons?"</p>
-      <p><strong>Step 1:</strong> Find the column below that contains <strong>ALL</strong> the symbols the Defuser describes.</p>
-      <p><strong>Step 2:</strong> Tell the Defuser to press them in <strong>column order</strong> (top to bottom).</p>
-      <table className="manual-table"><thead><tr><th>Col 1</th><th>Col 2</th><th>Col 3</th><th>Col 4</th></tr></thead><tbody>
-        {[0,1,2,3].map(r=>(<tr key={r}>{SYMBOL_COLUMNS.map((col,c)=>(<td key={c} style={{background:"#1a1a2e"}}><img className="pixel-art" alt={col[r]} src={PX.glyph(col[r])} width={32} height={32}/></td>))}</tr>))}
+      <p><strong>Ask:</strong> "What four pictures do you see?" The Defuser says the color and the thing: "a red star".</p>
+      <p><strong>Step 1:</strong> Find the list below that has <strong>ALL four</strong> pictures.</p>
+      <p><strong>Step 2:</strong> Tell the Defuser to press them in the <strong>order of that list</strong>, from top to bottom.</p>
+      <table className="manual-table"><thead><tr>{SYMBOL_COLUMNS.map((_,c)=><th key={c}>List {c+1}</th>)}</tr></thead><tbody>
+        {SYMBOL_COLUMNS[0].map((_,r)=>(<tr key={r}>{SYMBOL_COLUMNS.map((col,c)=>(<td key={c}>{col[r]}</td>))}</tr>))}
       </tbody></table>
-      <p style={{color:"#888",fontStyle:"italic"}}>Example: If the symbols are a C in a circle, a star, an empty star and four diamonds → that's Column 1. Press them in that order.</p>
+      <p style={{color:"#888",fontStyle:"italic"}}>Example: red star, yellow sun, blue star and red sun are all in List 1. Press them in that order.</p>
     </S>
 
     <S id="keypad" title="🔢 Number Keypad">
-      <p><strong>Ask:</strong> "What is the serial number?"</p>
-      <p><strong>Step 1:</strong> Find the <strong>first LETTER</strong> in the serial number.</p>
-      <p><strong>Step 2:</strong> If the letter is <strong>A through M</strong> → tell the Defuser: "Enter all numbers from 0 to 9, going UP (0, 1, 2, 3...)."</p>
-      <p>If the letter is <strong>N through Z</strong> → tell the Defuser: "Enter all numbers from 9 to 0, going DOWN (9, 8, 7, 6...)."</p>
+      <NumberKeypadManual/>
     </S>
 
     <S id="bigbtn" title="🔴 Big Button">
@@ -631,25 +749,18 @@ const ExpertManual = ({only}) => {
     </S>
 
     <S id="sliders" title="🎚️ Sliders">
-      <p><strong>Ask:</strong> "What is the serial number?"</p>
-      <p><strong>Step 1:</strong> Find the <strong>first three NUMBERS</strong> in the serial number.</p>
-      <p><strong>Step 2:</strong> Tell the Defuser:</p>
-      <p>• "Set the <strong>red</strong> slider to <strong>[1st digit]</strong>."</p>
-      <p>• "Set the <strong>blue</strong> slider to <strong>[2nd digit]</strong>."</p>
-      <p>• "Set the <strong>yellow</strong> slider to <strong>[3rd digit]</strong>."</p>
-      <p><strong>Step 3:</strong> Tell them to press SUBMIT.</p>
-      <p style={{color:"#888",fontStyle:"italic"}}>Example: Serial = AB325-C4D67 → digits are 3, 2, 5. Red=3, Blue=2, Yellow=5.</p>
+      <p><strong>Ask:</strong> "What color is the light?" and "What number does each slider start on?"</p>
+      <p><strong>Step 1:</strong> Write the three start numbers on paper.</p>
+      <p><strong>Step 2:</strong> Find the light's color in the table. Change each number.</p>
+      <table className="manual-table"><thead><tr><th>Light</th><th>Red slider</th><th>Blue slider</th><th>Yellow slider</th></tr></thead><tbody>
+        {Object.keys(SLIDER_MOVES).map(l=>(<tr key={l}><td><strong>{l}</strong></td>{SLIDER_MOVES[l].map((d,i)=><td key={i}>{moveWords(d)}</td>)}</tr>))}
+      </tbody></table>
+      <p><strong>Step 3:</strong> Tell the Defuser the three new numbers. Then they press SUBMIT.</p>
+      <p style={{color:"#888",fontStyle:"italic"}}>Example: the light is green and red starts on 4. "Two more" than 4 is 6. Set the red slider to 6.</p>
     </S>
 
     <S id="crack" title="🔐 Crack the Code">
-      <p><strong>How it works:</strong> The Defuser must guess a secret 3-color code. Colors are: red, green, yellow, blue, white.</p>
-      <p><strong>After each guess, the Defuser sees clues:</strong></p>
-      <p>• <strong>● (solid dot)</strong> = right color in the right position</p>
-      <p>• <strong>◐ (half dot)</strong> = right color but wrong position</p>
-      <p><strong>Your job:</strong> Help the Defuser narrow down the code using logic!</p>
-      <p>• Ask: "What colors did you guess?" and "How many solid dots? How many half dots?"</p>
-      <p>• Use the clues to suggest the next guess. They have <strong>5 attempts</strong>.</p>
-      <p style={{color:"#888",fontStyle:"italic"}}>Tip: Start with 3 different colors to learn the most from the first clue.</p>
+      <CrackTheCodeManual/>
     </S>
 
     <S id="word" title="📝 Word Buttons">
@@ -662,24 +773,24 @@ const ExpertManual = ({only}) => {
     </S>
 
     <S id="mem" title="🧠 Memory">
-      <p><strong>How it works:</strong> There are 5 stages. Each stage shows a number (1-4) on the display and four buttons labeled ONE, TWO, THREE, FOUR.</p>
-      <p><strong>The rule:</strong> The number on the display tells you which <strong>POSITION</strong> to press.</p>
-      <p>• Display shows <strong>1</strong> → press the <strong>1st button</strong> (leftmost).</p>
-      <p>• Display shows <strong>2</strong> → press the <strong>2nd button</strong> from the left.</p>
-      <p>• Display shows <strong>3</strong> → press the <strong>3rd button</strong> from the left.</p>
-      <p>• Display shows <strong>4</strong> → press the <strong>4th button</strong> (rightmost).</p>
-      <p><strong>Ask:</strong> "What number is on the display?"</p>
-      <p style={{color:"#888",fontStyle:"italic"}}>Important: The button LABELS change position each stage! Always count from the left, don't go by the word on the button.</p>
+      <p>There are <strong>{MEMORY_RULES.length} stages</strong>. Each stage shows a number and four word buttons. The words move every stage.</p>
+      <p><strong>Every stage, ask:</strong> "What number is on the screen?" and "What are the words, from left to right?"</p>
+      <p><strong>Find what to press:</strong></p>
+      <table className="manual-table"><thead><tr><th>Number on screen →</th><th>1</th><th>2</th><th>3</th><th>4</th></tr></thead><tbody>
+        {MEMORY_RULES.map((row,i)=>(<tr key={i}><td><strong>Stage {i+1}</strong></td>{row.map((r,j)=><td key={j}>{memoryRuleText(r)}</td>)}</tr>))}
+      </tbody></table>
+      <p><strong>Write down every press on paper:</strong> the stage, the place (1st, 2nd, 3rd or 4th from the left) and the word. You will need them later.</p>
+      <p style={{color:"#888",fontStyle:"italic"}}>"Same place as Stage 1" = press the button in the place you pressed in Stage 1. "Same word as Stage 2" = press the word you pressed in Stage 2, where it is now.</p>
     </S>
 
     <S id="sympanel" title="🎨 Symbol Panel">
-      <p><strong>Ask:</strong> "What symbols do you see?" and "What is the serial number?"</p>
+      <p><strong>Ask:</strong> "What four pictures do you see?" and "What is the serial number?"</p>
       <p><strong>Step 1:</strong> Find the <strong>first NUMBER</strong> in the serial number.</p>
       <p><strong>Step 2:</strong></p>
-      <p>• If the digit is <strong>0, 1, 2, or 3</strong> → press the <strong>PLANT</strong> symbol (tree, flower, cactus).</p>
-      <p>• If the digit is <strong>4, 5, or 6</strong> → press the <strong>ANIMAL</strong> symbol (cat, fox, fish).</p>
-      <p>• If the digit is <strong>7, 8, or 9</strong> → press the <strong>FOOD</strong> symbol (apple, pizza, hamburger).</p>
-      <p style={{color:"#888",fontStyle:"italic"}}>Ask the Defuser to describe each symbol. Help them identify which is a plant, animal, or food.</p>
+      <p>• If the number is <strong>0, 1, 2, or 3</strong> → press the <strong>PLANT</strong> (a tree, a cactus or a flower).</p>
+      <p>• If the number is <strong>4, 5, or 6</strong> → press the <strong>ANIMAL</strong> (a cat, a dog, a bird…).</p>
+      <p>• If the number is <strong>7, 8, or 9</strong> → press the <strong>FOOD</strong> (pizza, cake, bread…).</p>
+      <p style={{color:"#888",fontStyle:"italic"}}>There is always one plant, one animal, one food and one other thing.</p>
     </S>
 
     <S id="switch" title="🎛️ Switchboard">
@@ -736,7 +847,40 @@ const ExpertManual = ({only}) => {
       <p>4. "Press TRY UNLOCK" after each turn. Be sure first: a wrong try is a mistake.</p>
       <p style={{color:"#888",fontStyle:"italic"}}>The pattern is always RIGHT → LEFT → RIGHT. Use paper for the math.</p>
     </S>
-    {(window.EXTRA_MODULES||[]).map(m=>(<S key={m.id} id={m.id} title={m.name}><m.Manual/></S>))}
+    {(window.EXTRA_MODULES||[]).map((m,i,all)=>{
+      // Two modules can share one manual (Teen Code + Teen Code: Twins). On paper, print it once.
+      const first=all.find(x=>x.Manual===m.Manual), shown=!only||only.includes(first.id);
+      return (<S key={m.id} id={m.id} title={m.name}>{print&&first!==m&&shown?<p>Use the <strong>{first.name}</strong> section. It is the same.</p>:<m.Manual/>}</S>);})}
+  </div></MANUAL.Print.Provider>);
+};
+
+/* ===== MANUAL CODE + PRINTING =====
+   The code is a hash of the whole paper manual's text (all sections, all codebooks), so it changes by itself
+   whenever a rule, a table or the codebook cycle changes. The game shows it on the menu and on the bomb;
+   every printed page shows it too. Same code = this printout goes with this game. */
+let MANUAL_CODE=null;
+const getManualCode=()=>{
+  if(MANUAL_CODE)return MANUAL_CODE;
+  const div=document.createElement("div"), root=ReactDOM.createRoot(div);
+  ReactDOM.flushSync(()=>root.render(<ExpertManual print/>));
+  const text=div.textContent; root.unmount();
+  return (MANUAL_CODE=MANUAL.code(text));
+};
+const manualFileName=(label)=>`ESL-Bomb-Squad-Manual_v${MANUAL.VERSION}_${getManualCode()}${label?"_"+label.replace(/\s+/g,"-"):""}`;
+const printManual=(label)=>{const old=document.title;document.title=manualFileName(label);window.print();setTimeout(()=>{document.title=old;},500);};
+const PrintManual = ({only,label}) => {
+  const code=getManualCode(), today=new Date().toISOString().slice(0,10);
+  return (<div className="print-manual">
+    <table className="pm-frame"><thead><tr><td><div className="pm-stamp"><span>ESL BOMB SQUAD · EXPERT MANUAL{label?` · ${label}`:""}</span><span>v{MANUAL.VERSION} · CODE <b>{code}</b></span></div></td></tr></thead>
+    <tbody><tr><td>
+      <div className="pm-cover">
+        <h1>📖 BOMB DEFUSAL MANUAL</h1><p className="manual-subtitle">CLASSIFIED — For Experts Only</p>
+        <div className="pm-id"><div><small>VERSION</small><b>{MANUAL.VERSION}</b></div><div><small>MANUAL CODE</small><b>{code}</b></div><div><small>CODEBOOK</small><b>{MANUAL.CYCLE}</b></div></div>
+        <p><strong>Check before you play:</strong> the game's menu and the top of the bomb show a MANUAL CODE. It must be <strong>{code}</strong>. If it is different, this manual is for another version of the game. Do not use it.</p>
+        <p className="pm-meta">{label?`This copy has the sections for ${label} only. `:"This copy has every section. "}Printed {today}.</p>
+      </div>
+      <ExpertManual print only={only}/>
+    </td></tr></tbody></table>
   </div>);
 };
 
@@ -754,7 +898,7 @@ const MISSIONS = [
   { id:"m1",  name:"First Bomb",       timer:300, modules:["colorWires","monsterLab"] },
   { id:"m2",  name:"Who Is It?",       timer:300, modules:["userName","colorWires","guessWho"] },
   { id:"m3",  name:"Snack Time",       timer:300, modules:["symbolKeypad","monsterLab","vendingMachine"] },
-  { id:"m4",  name:"Number Day",       timer:300, modules:["numberKeypad","sliders","bigButton"] },
+  { id:"m4",  name:"Number Day",       timer:420, modules:["numberKeypad","teenCode","sliders","bigButton"] },
   { id:"m5",  name:"Family Day",       timer:420, modules:["wordButtons","guessWho","familyPhoto"] },
   { id:"m6",  name:"Lunch Time",       timer:420, modules:["vendingMachine","giftShop","lunchRush"] },
   { id:"m7",  name:"School Day",       timer:420, modules:["memory","messyDesk","schoolBell"] },
@@ -884,7 +1028,7 @@ const BombComponent = ({config,team,onGameEnd}) => {
     {config.fun&&<AlarmClock active={gameStatus==="playing"}/>}
     {gameStatus==="countdown"&&<div className="countdown-overlay"><div className="countdown-number">{countdown>0?countdown:"GO!"}</div></div>}
     <div className="bomb-header"><div className="timer-display" style={{color:tc,textShadow:`0 0 15px ${tc}`}}>{Math.floor(timeLeft/60)}:{String(timeLeft%60).padStart(2,"0")}{strikes>0&&<span className="speed-badge">⏩ ×{speed}</span>}</div>
-      <div className="serial-display">{team&&<div className="team-tag">{team[0]} {team[1]}{config.mission?` · MISSION ${config.mission.num}`:""}</div>}<span className="serial-label">SN:</span><span className="serial-value">{serialNumber}</span></div>
+      <div className="serial-display">{team&&<div className="team-tag">{team[0]} {team[1]}{config.mission?` · MISSION ${config.mission.num}`:""}</div>}<span className="serial-label">SN:</span><span className="serial-value">{serialNumber}</span><div className="manual-code-tag">MANUAL CODE {getManualCode()}</div></div>
       <div className="bomb-plate"><span className="battery-row">{Array.from({length:bomb.batteries},(_,i)=>(<img key={i} className="pixel-art" alt="battery" src={batterySrc()} width={24} height={42}/>))}</span><span className="sticker"><img className="pixel-art" alt={bomb.sticker.name} src={stickerSrc(bomb.sticker)} width={48} height={48}/></span></div>
       <div className="strikes-display">{Array.from({length:maxStrikes},(_,i)=>(<span key={i} className={`strike-indicator ${i<strikes?"active":""}`}>{i<strikes?"❌":"⭕"}</span>))}<button className="mute-btn" aria-label={muted?"sound off":"sound on"} onClick={()=>{SFX.setMuted(!muted);setMuted(!muted);}}>{muted?"🔇":"🔊"}</button></div></div>
     <div className={`modules-grid ${dark?"lights-out":""}`}>{config.modules.map(mod=>(<ModuleWrapper key={mod.id} module={mod} serialNumber={serialNumber} bomb={bomb} locked={finaleLocked&&mod.id===config.finaleId} finale={mod.id===config.finaleId} onComplete={id=>{stat(id).solved=true;if(completed.length+1<config.modules.length)SFX.defuse();setCompleted(p=>[...p,id]);}} onStrike={()=>handleStrike(mod.id)}/>))}{config.fun&&<BombQuiz bomb={bomb} active={gameStatus==="playing"} onStrike={()=>handleStrike("fun")}/>}</div></div>);
@@ -1069,6 +1213,42 @@ function App(){
       .alarm-clock span{font-size:3rem;line-height:1;}
       @keyframes alarmShake{0%{transform:rotate(-7deg);}50%{transform:rotate(7deg);}100%{transform:rotate(-7deg);}}
       .fun-row{display:flex;align-items:center;gap:0.75rem;margin-top:1.5rem;color:#888;font-size:0.75rem;flex-wrap:wrap;}
+      .version-tag{position:absolute;bottom:1rem;left:0;right:0;font-size:0.75rem;color:#888;letter-spacing:2px;}
+      .manual-code-tag{font-size:0.65rem;color:#888;letter-spacing:1px;margin-top:0.15rem;}
+      .print-btn{position:fixed;top:1rem;right:1rem;z-index:100;padding:0.5rem 1rem;border:1px solid #f1c40f;background:#f1c40f;color:#000;cursor:pointer;font-family:'Share Tech Mono',monospace;border-radius:4px;font-weight:bold;}
+      .manual-stamp{text-align:center;font-size:0.75rem;color:#aaa;letter-spacing:2px;padding-bottom:0.5rem;}
+      .mk-book-title{font-size:0.95rem;margin:0.8rem 0 0.3rem;border-bottom:1px solid #999;}
+      .mk-entry{margin:0.4rem 0 0.6rem;}.mk-entry h4{font-size:0.85rem;margin-bottom:0.2rem;}
+      .mk-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:0.6rem;}
+      .print-manual{display:none;}
+      @media print{
+        @page{size:A4;margin:10mm 12mm;}
+        html,body,.app{background:#fff!important;color:#000!important;min-height:0!important;}
+        .no-print,.app>*:not(div),.app>div>*:not(.print-manual){display:none!important;}
+        .print-manual{display:block;}
+        *{-webkit-print-color-adjust:exact;print-color-adjust:exact;}
+        .pm-frame{width:100%;border-collapse:collapse;}.pm-frame>thead>tr>td,.pm-frame>tbody>tr>td{padding:0;}
+        .pm-stamp{display:flex;justify-content:space-between;font:9pt 'Share Tech Mono',monospace;color:#444;border-bottom:1px solid #999;padding-bottom:2mm;margin-bottom:3mm;}
+        .pm-cover{font-family:Georgia,serif;text-align:center;margin-bottom:6mm;}.pm-cover h1{font-size:20pt;border-bottom:3px double #333;padding-bottom:2mm;}
+        .pm-cover p{font-size:10pt;margin:2mm 0;}.pm-meta{color:#666;font-style:italic;}
+        .pm-id{display:flex;justify-content:center;gap:6mm;margin:4mm 0;}.pm-id div{border:2px solid #000;border-radius:2mm;padding:2mm 5mm;display:flex;flex-direction:column;}
+        .pm-id small{font-size:7pt;letter-spacing:1px;color:#555;}.pm-id b{font:bold 16pt 'Share Tech Mono',monospace;letter-spacing:2px;}
+        .print-manual .manual-page-content{max-width:none;padding:0;background:#fff;min-height:0;line-height:1.4;}
+        .print-manual .manual-section{border:none;border-radius:0;margin:0 0 5mm;overflow:visible;}
+        .print-manual .manual-section h2{background:#e8e0d0;border:1px solid #999;font-size:12pt;padding:1.5mm 3mm;break-after:avoid;}
+        .print-manual .manual-section>div{padding:2mm 1mm;}
+        .print-manual .manual-section p{font-size:10pt;}
+        .print-manual table,.print-manual .mk-entry,.print-manual .fp-page,.print-manual .ms-plan{break-inside:avoid;}
+        .print-manual .manual-table{font-size:9pt;}
+        .print-manual .lr-rules,.print-manual .fp-page{background:#fff!important;color:#000!important;border:1px solid #999;}
+        .print-manual .lr-rules p,.print-manual .fp-page p{font-size:10pt;}
+        .print-manual .mk-grid{grid-template-columns:1fr 1fr;}
+        .print-manual .mk-book-title{break-after:avoid;page-break-after:avoid;}
+        .print-manual .ms-wall{color:#000!important;}
+      }
+      .manual-key{padding:0.4rem 0.3rem;background:#fff;border:1px solid #888;border-radius:4px;cursor:pointer;font-family:'Share Tech Mono',monospace;font-size:0.8rem;color:#222;}.manual-key:disabled{opacity:0.45;cursor:default;}
+      .manual-input{width:5rem;padding:0.4rem;font-size:1.1rem;font-family:'Share Tech Mono',monospace;letter-spacing:3px;text-align:center;border:2px solid #888;border-radius:4px;}
+      .manual-readout{min-height:1.6rem;font-size:0.9rem!important;}.manual-answer{background:#fff7d6;border-left:4px solid #f1c40f;padding:0.4rem 0.5rem;font-size:0.85rem!important;margin:0.3rem 0;}
       .test-tools{display:flex;gap:0.3rem;padding:0.25rem;background:#3a3200;}.test-tools button{flex:1;font-size:0.65rem;padding:0.2rem;background:#f1c40f;border:none;cursor:pointer;font-family:'Share Tech Mono',monospace;}
       .finale-tag{background:#ff8800;color:#000;font-family:'Orbitron',sans-serif;font-size:0.7rem;font-weight:bold;text-align:center;padding:0.2rem;letter-spacing:2px;}
       .manual-filter{display:flex;flex-wrap:wrap;gap:0.35rem;align-items:center;justify-content:center;padding:3.5rem 1rem 0.5rem;font-size:0.8rem;color:#aaa;}
@@ -1079,17 +1259,21 @@ function App(){
       @keyframes bgPulse{0%,100%{transform:scale(1);opacity:0.5;}50%{transform:scale(1.3);opacity:0.3;}}
       @media(max-width:768px){.game-title{font-size:2rem;}.bomb-icon{font-size:5rem;}.bomb-header{flex-direction:column;text-align:center;}.timer-display{font-size:2rem;}.modules-grid{grid-template-columns:1fr;}.manual-overlay{width:100%;}.menu-btn{padding:0.8rem 2rem;font-size:0.9rem;}.settings-panel{margin:1rem;padding:1.5rem;}}
     `}</style>
-    {screen==="menu"&&(<div className="menu-screen"><div className="bomb-icon">💣</div><h1 className="game-title">ESL BOMB SQUAD</h1><p className="game-subtitle">Communication Under Pressure</p>{TEST_MODE&&<p style={{color:"#f1c40f",marginTop:"-2rem",marginBottom:"2rem",letterSpacing:"3px"}}>TEST MODE</p>}<div className="menu-buttons"><button className="team-btn" onClick={nextTeam}>TEAM: {team[0]} {team[1]} <span>tap to change</span></button><button className="menu-btn primary" onClick={()=>setScreen("missions")}>🎯 MISSIONS</button><button className="menu-btn secondary" onClick={()=>{setManualOnly(null);setScreen("manual-only");}}>📖 EXPERT MANUAL</button><button className="menu-btn tertiary" onClick={()=>setScreen("settings")}>🛠 FREE PLAY</button></div></div>)}
+    {screen==="menu"&&(<div className="menu-screen"><div className="bomb-icon">💣</div><h1 className="game-title">ESL BOMB SQUAD</h1><p className="game-subtitle">Communication Under Pressure</p>{TEST_MODE&&<p style={{color:"#f1c40f",marginTop:"-2rem",marginBottom:"2rem",letterSpacing:"3px"}}>TEST MODE</p>}<div className="menu-buttons"><button className="team-btn" onClick={nextTeam}>TEAM: {team[0]} {team[1]} <span>tap to change</span></button><button className="menu-btn primary" onClick={()=>setScreen("missions")}>🎯 MISSIONS</button><button className="menu-btn secondary" onClick={()=>{setManualOnly(null);setScreen("manual-only");}}>📖 EXPERT MANUAL</button><button className="menu-btn tertiary" onClick={()=>setScreen("settings")}>🛠 FREE PLAY</button></div><p className="version-tag">v{MANUAL.VERSION} · MANUAL CODE {getManualCode()}</p></div>)}
     {screen==="missions"&&(<div><button className="back-btn" onClick={()=>setScreen("menu")}>← Back</button><MissionSelect progress={progress} fun={fun} setFun={setFun} onPick={m=>startGame({mission:m,fun})}/></div>)}
     {screen==="settings"&&(<div><button className="back-btn" onClick={()=>setScreen("menu")}>← Back</button><SettingsPanel onStartGame={startGame} fun={fun} setFun={setFun}/></div>)}
     {screen==="playing"&&config&&(<div className="game-layout"><button className="back-btn" onClick={reset}>← Quit</button>{TEST_MODE&&<button className={`manual-toggle ${showManual?"active":""}`} onClick={()=>setShowManual(!showManual)}>{showManual?"✕ Close Manual":"📖 Manual (TEST)"}</button>}<BombComponent key={gameKey} config={config} team={team} onGameEnd={endGame}/>{TEST_MODE&&<div className={`manual-overlay ${showManual?"visible":""}`}><ExpertManual only={[...new Set(config.modules.map(m=>m.baseId))]}/></div>}</div>)}
-    {screen==="manual-only"&&(<div><button className="back-btn" onClick={()=>setScreen("menu")}>← Back</button>
+    {screen==="manual-only"&&(<div><div className="no-print"><button className="back-btn" onClick={()=>setScreen("menu")}>← Back</button>
+      <button className="print-btn" onClick={()=>printManual(manualOnly&&manualOnly.label)}>🖨 PRINT / SAVE PDF</button>
       <div className="manual-filter"><span>SHOW:</span><button className={!manualOnly?"active":""} onClick={()=>setManualOnly(null)}>ALL</button>{manualOnly&&!manualOnly.label.startsWith("MISSION")&&<button className="active">{manualOnly.label}</button>}{MISSIONS.map(m=>(<button key={m.id} className={manualOnly&&manualOnly.label===`MISSION ${m.num}`?"active":""} onClick={()=>setManualOnly({label:`MISSION ${m.num}`,ids:m.modules})}>{m.num}</button>))}{manualOnly&&manualOnly.label.startsWith("MISSION")&&<em>{manualOnly.label}: {MISSIONS[Number(manualOnly.label.slice(8))-1].name}</em>}</div>
-      <ExpertManual key={manualOnly?manualOnly.label:"all"} only={manualOnly?manualOnly.ids:null}/></div>)}
+      <p className="manual-stamp">v{MANUAL.VERSION} · MANUAL CODE {getManualCode()}</p>
+      <ExpertManual key={manualOnly?manualOnly.label:"all"} only={manualOnly?manualOnly.ids:null}/></div>
+      <PrintManual only={manualOnly?manualOnly.ids:null} label={manualOnly?manualOnly.label:null}/></div>)}
     {screen==="result"&&gameResult&&config&&<ResultsScreen result={gameResult.result} best={gameResult.best} isNewBest={gameResult.isNewBest} config={config} team={team} onReplay={()=>{SFX.unlock();startGame(config.spec);}} onSwap={()=>openManualFor(config)} onNext={nextMission?()=>startGame({mission:nextMission,fun:config.fun}):null} onMenu={reset}/>}
   </div>);
 }
 
+getManualCode(); // work the code out once, before the first render (it renders the paper manual off-screen)
 ReactDOM.createRoot(document.getElementById('root')).render(React.createElement(App));
 </script>
 </body>

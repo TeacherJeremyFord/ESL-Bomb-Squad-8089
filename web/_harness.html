@@ -5,7 +5,7 @@
 <script>
 // Load every module script listed in index.html, in order.
 const x=new XMLHttpRequest();x.open("GET","index.html",false);x.send();
-for(const m of x.responseText.matchAll(/<script src="((?:pixel|sprites\/)[^"]*)"/g)) document.write(`<script src="${m[1]}"><\/script>`);
+for(const m of x.responseText.matchAll(/<script src="((?:manual-kit|pixel|sprites\/)[^"]*)"/g)) document.write(`<script src="${m[1]}"><\/script>`);
 for(const m of x.responseText.matchAll(/<script type="text\/babel" src="(modules\/[^"]+)"/g)) document.write(`<script type="text/babel" src="${m[1]}"><\/script>`);
 </script>
 <style>body{background:#1a1a2e;color:#eee;font-family:monospace;margin:0;display:flex;gap:12px;padding:10px}

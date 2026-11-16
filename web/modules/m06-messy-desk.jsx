@@ -131,6 +131,7 @@
   /* --- Expert --- */
   const MessyDeskManual = () => {
     const [p, setP] = useState(0);
+    const print = React.useContext(MANUAL.Print);
     return (<div>
       <p><strong>Ask:</strong> "What is the last number of the serial?" Then find the page.</p>
       <div className="lr-rules">
@@ -138,8 +139,9 @@
         <p>If a thing is not in the rules, it can be in any place. Do not move it.</p>
         <p>When every rule is true, press CHECK.</p>
       </div>
+      {print ? PAGES.map((pg, j) => <div key={j} className="fp-page mk-entry"><h4>PAGE {j} (serial ends in {j} or {j + 5})</h4>{pg.map((r, i) => <p key={i}>{i + 1}. {text(r)}</p>)}</div>) : <>
       <div className="fp-tabs">{PAGES.map((_, i) => <button key={i} onClick={() => setP(i)} className={`fp-tab ${p === i ? "active" : ""}`}>Page {i} ({i} or {i + 5})</button>)}</div>
-      <div className="fp-page"><h4>PAGE {p} (serial ends in {p} or {p + 5})</h4>{PAGES[p].map((r, i) => <p key={i}>{i + 1}. {text(r)}</p>)}</div>
+      <div className="fp-page"><h4>PAGE {p} (serial ends in {p} or {p + 5})</h4>{PAGES[p].map((r, i) => <p key={i}>{i + 1}. {text(r)}</p>)}</div></>}
     </div>);
   };
 

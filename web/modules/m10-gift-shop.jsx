@@ -51,7 +51,7 @@
 
   /* --- Defuser --- */
   const GiftShopModule = ({ onSuccess, onStrike }) => {
-    const [code] = useState(() => 1000 + Math.floor(Math.random() * 9000));
+    const [code] = useState(() => MANUAL.pick("giftShop"));
     const [shop] = useState(() => makeShop(code));
     const [attempt, setAttempt] = useState(0);
     const [basket, setBasket] = useState({});
@@ -84,6 +84,15 @@
 
   /* --- Expert --- */
   const GiftShopManual = () => {
+    if (React.useContext(MANUAL.Print)) return (<div>
+      <p><strong>Ask:</strong> "What is the shop number?" Find it in the wallet list. That is how much money the bomb has.</p>
+      <table className="manual-table"><thead><tr><th>Shop number</th><th>The bomb has…</th><th>Shop number</th><th>The bomb has…</th></tr></thead><tbody>
+        {(() => { const b = MANUAL.codebook("giftShop"), h = Math.ceil(b.length / 2); return b.slice(0, h).map((n, i) => <tr key={n}><td>{n}</td><td>{dollars(makeShop(n).wallet)}</td>{b[i + h] ? <><td>{b[i + h]}</td><td>{dollars(makeShop(b[i + h]).wallet)}</td></> : <><td /><td /></>}</tr>); })()}
+      </tbody></table>
+      <p><strong>Ask:</strong> "Who is the gift for?" Then ask: "How much is it?"</p>
+      <div className="fp-page">{Object.values(GUIDE).map((g) => <p key={g.text}>{g.text}</p>)}</div>
+      <div className="lr-rules"><p>Spend <strong>all</strong> the money. Not more, not less.</p><p>There is only <strong>one</strong> good gift. Find it!</p><p>If you pay and it is not good, the prices change. Ask again!</p></div>
+    </div>);
     const [entry, setEntry] = useState(""), [shop, setShop] = useState(null);
     const show = () => { const n = parseInt(entry, 10); if (n >= 1000 && n <= 9999) setShop(makeShop(n)); };
     return (<div>

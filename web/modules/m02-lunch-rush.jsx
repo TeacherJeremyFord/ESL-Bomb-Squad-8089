@@ -59,7 +59,7 @@
 
   /* --- Defuser --- */
   const LunchRushModule = ({ onSuccess, onStrike }) => {
-    const [code] = useState(() => 1000 + Math.floor(Math.random() * 9000));
+    const [code] = useState(() => MANUAL.pick("lunchRush"));
     const [game] = useState(() => makeGame(code));
     const [t0, setT0] = useState(null); // the round starts when the Defuser presses START
     const [now, setNow] = useState(() => Date.now());
@@ -169,7 +169,22 @@
   };
 
   /* --- Expert --- */
+  const clock = (ms) => `${Math.floor(ms / 60000)}:${String(Math.floor(ms / 1000) % 60).padStart(2, "0")}`;
   const LunchRushManual = () => {
+    if (React.useContext(MANUAL.Print)) return (<div>
+      <p><strong>You need a watch or a clock with seconds.</strong></p>
+      <p><strong>Ask:</strong> "What is the order number?" Find it in the order book. Then say "Ready… go!" The Defuser presses START. Start your clock at the same time.</p>
+      <p><strong>Ask:</strong> "What color is the light?"</p>
+      <div className="lr-rules">{RULES.map(([k, text]) => <p key={k}>{text}</p>)}
+        <p>Cook pork, beef, chicken, rice and an egg on the stove. Brown is good. Black is bad.</p>
+        <p>Say the meal: BREAKFAST, LUNCH or DINNER. Press SERVE on that tray.</p>
+      </div>
+      <p>Read each order at its <strong>start</strong> time. It must be on the tray before its <strong>end</strong> time. Tick it when it is served.</p>
+      <h3 className="mk-book-title">Order book</h3>
+      {MANUAL.codebook("lunchRush").map((n) => (<div key={n} className="mk-entry"><h4>ORDER NUMBER {n}</h4>
+        <table className="manual-table"><thead><tr><th>Start</th><th>End</th><th>Meal</th><th>Order</th><th>✓</th></tr></thead>
+          <tbody>{makeGame(n).tickets.map((t) => <tr key={t.tid}><td>{clock(t.openMs)}</td><td>{clock(t.dueMs)}</td><td>{t.meal.toUpperCase()}</td><td style={{ textAlign: "left" }}>{ticketText(t)}</td><td></td></tr>)}</tbody></table></div>))}
+    </div>);
     const [entry, setEntry] = useState("");
     const [game, setGame] = useState(null);
     const [t0, setT0] = useState(0);
