@@ -38,14 +38,20 @@
   the manual; Switchboard and Combo Lock could be solved by trial and error with no penalty.
   Also: "mod 4" / "mod 40" taken out of the Monster Lab and Combo Lock manuals (same rules, plain words);
   Big Button moved to pointer events so one wrong tap on a touch screen is one strike, not two.
-- [ ] Audit findings that need a design decision:
-  - **Crack the Code**: the Expert has no hidden information, so the Defuser can solve it alone.
-  - **Memory, Sliders, Number Keypad**: one tiny fixed rule each. After one play the Defuser knows it
-    and no longer needs the Expert. (Memory also has nothing to remember.)
-  - **Symbol Keypad**: the Expert's table is pictures, so the pair can match them without English.
-  - **Symbol Panel**: "fish" is the animal in a set that also asks for a food; some would call fish a food.
+- [x] Audit findings redesigned (2026-11-11):
+  - **Crack the Code**: each guess gets a 4-digit clue number that only the manual can read; the Expert
+    types it in, gets the clue in English, and keeps notes of the guesses on paper.
+  - **Memory**: four stages with a rule table; later stages point back ("same place as Stage 1",
+    "same word as Stage 2"), so the Expert writes down every press. Words now really move each stage.
+  - **Sliders**: a light picks a row of the table ("two more", "one less", "the same") applied to each
+    slider's start number. No serial.
+  - **Number Keypad**: the Defuser says three numbers (1–12); the Expert taps the number words in the manual
+    and gets two number words to say back. No serial; the Expert is needed every round.
+  - **Symbol Keypad**: colored pictures ("red star", "blue moon"); the manual's lists are words, not pictures.
+  - **Symbol Panel**: one plant, one animal, one food, one other thing from pools with no overlap (no fish).
+    Still one small fixed rule (serial digit picks the group), so it can be learned; left as is for now.
 - [x] Bomb features (color, batteries, sticker) shown as pictures; read by Vending Machine, Big Button
-  and Word Buttons instead of the serial number. Serial now used by 9 of 28 modules (2026-11-10)
+  and Word Buttons instead of the serial number. Serial now used by 7 of 28 modules (2026-11-11)
 - [x] Fun mode (alarm clock, lights out, bomb quiz), off by default and never saved (2026-11-10)
 
 ## 🎯 Medium Term

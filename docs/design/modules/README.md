@@ -80,6 +80,7 @@ has to make English unavoidable:
 | M10 | All numbers are **English words** on both sides (`seven dollars`). No digits anywhere. |
 | M11 | The Doctor Book is English (body parts, *how many*, *more than*). |
 | M12 | The entry list is English (*tiger*, *swim*) and read under time pressure. |
+| M13 | The code is English number words only; the keypad is digits only. The Defuser has to *hear* -teen vs. -ty. (400-list; doc in [`400/`](400/M13_teen_code.md).) |
 
 **Future option:** speech recognition (the bomb only accepts a *spoken* English word) would
 force speaking directly. It's unreliable in a noisy classroom and raises privacy questions,
@@ -151,6 +152,7 @@ module must pass this check against the table below:
 | M10 | "Who is the gift for?" | find the exact-money combination | mental arithmetic | search | — |
 | M11 | "Is it sick?" | count, then touch in order | treatment steps | counting | B1: eye count in serial? |
 | M12 | Defuser calls the race | press at the right moment | instant lookup | reaction speed | — |
+| M13 | Expert reads the first number | press a dictated code | pronounce -teen/-ty stress | listening accuracy, reset on a wrong press | — |
 
 ## Inspiration (researched 2026-10-28)
 
