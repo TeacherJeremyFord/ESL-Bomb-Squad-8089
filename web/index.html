@@ -895,18 +895,20 @@ const SORTED_MODULES = (() => { const rank=(m)=>rankOf(m), nm=(m)=>m.name.replac
    One line per mission: edit freely. `modules` are module ids; the LAST one is the finale
    (it stays locked until the others are defused; needs 3 or more modules). `timer` is in seconds. */
 const MISSIONS = [
-  { id:"m1",  name:"First Bomb",       timer:300, modules:["colorWires","monsterLab"] },
-  { id:"m2",  name:"Who Is It?",       timer:300, modules:["userName","colorWires","guessWho"] },
-  { id:"m3",  name:"Snack Time",       timer:300, modules:["symbolKeypad","monsterLab","vendingMachine"] },
-  { id:"m4",  name:"Number Day",       timer:420, modules:["numberKeypad","teenCode","sliders","bigButton"] },
-  { id:"m5",  name:"Family Day",       timer:420, modules:["wordButtons","guessWho","familyPhoto"] },
-  { id:"m6",  name:"Lunch Time",       timer:420, modules:["vendingMachine","giftShop","lunchRush"] },
-  { id:"m7",  name:"School Day",       timer:420, modules:["memory","messyDesk","schoolBell"] },
-  { id:"m8",  name:"Rainy Day",        timer:420, modules:["crackTheCode","colorSwitchboard","weatherWardrobe"] },
-  { id:"m9",  name:"City Trip",        timer:420, modules:["combinationLock","worldClock","ticketMachine"] },
-  { id:"m10", name:"Night House",      timer:600, modules:["symbolPanel","moodPlugs","midnightSnack"] },
-  { id:"m11", name:"Monster Hospital", timer:600, modules:["monsterLab","mysteryGuest","monsterClinic"] },
-  { id:"m12", name:"The Big One",      timer:600, modules:["schoolBell","giftShop","ticketMachine","animalRace"] },
+  { id:"m1",  name:"Just Wires",       timer:300, modules:["colorWires"] },
+  { id:"m2",  name:"Just Monsters",    timer:300, modules:["monsterLab"] },
+  { id:"m3",  name:"First Bomb",       timer:300, modules:["colorWires","monsterLab"] },
+  { id:"m4",  name:"Who Is It?",       timer:300, modules:["userName","colorWires","guessWho"] },
+  { id:"m5",  name:"Snack Time",       timer:300, modules:["symbolKeypad","monsterLab","vendingMachine"] },
+  { id:"m6",  name:"Number Day",       timer:420, modules:["numberKeypad","teenCode","sliders","bigButton"] },
+  { id:"m7",  name:"Family Day",       timer:420, modules:["wordButtons","guessWho","familyPhoto"] },
+  { id:"m8",  name:"Lunch Time",       timer:420, modules:["vendingMachine","giftShop","lunchRush"] },
+  { id:"m9",  name:"School Day",       timer:420, modules:["memory","messyDesk","schoolBell"] },
+  { id:"m10", name:"Rainy Day",        timer:420, modules:["crackTheCode","colorSwitchboard","weatherWardrobe"] },
+  { id:"m11", name:"City Trip",        timer:420, modules:["combinationLock","worldClock","ticketMachine"] },
+  { id:"m12", name:"Night House",      timer:600, modules:["symbolPanel","moodPlugs","midnightSnack"] },
+  { id:"m13", name:"Monster Hospital", timer:600, modules:["monsterLab","mysteryGuest","monsterClinic"] },
+  { id:"m14", name:"The Big One",      timer:600, modules:["schoolBell","giftShop","ticketMachine","animalRace"] },
 ].map((m,i)=>({...m,num:i+1,modules:m.modules.filter(id=>MODULES_LIST.some(x=>x.id===id))}));
 
 const TEAMS = [["🐯","TIGERS"],["🦁","LIONS"],["🐵","MONKEYS"],["🐻","BEARS"],["🐰","RABBITS"],["🐶","DOGS"],["🐱","CATS"],["🐦","BIRDS"],["🐟","FISH"],["🐘","ELEPHANTS"],["🐴","HORSES"],["🐸","FROGS"]];
@@ -916,6 +918,11 @@ const STORE = {
   get:(k,d)=>{try{const v=localStorage.getItem("eslbomb-"+k);return v==null?d:JSON.parse(v);}catch(e){return d;}},
   set:(k,v)=>{try{localStorage.setItem("eslbomb-"+k,JSON.stringify(v));}catch(e){}},
 };
+/* 2026-11-18: two single-module missions were added at the front, so every old mission moved up by two
+   (m1→m3 … m12→m14). Move stars saved under the old ids once, so they stay with the same mission. */
+(()=>{ if(STORE.get("progressIds",1)>=2) return; const p=STORE.get("progress",{}), q={};
+  Object.keys(p).forEach(k=>{const n=/^m(\d+)$/.exec(k); q[n?"m"+(+n[1]+2):k]=p[k];});
+  STORE.set("progress",q); STORE.set("progressIds",2); })();
 const fmtTime = (t) => `${Math.floor(t/60)}:${String(t%60).padStart(2,"0")}`;
 /* stars: 1 for defusing the bomb, +1 for 0–1 mistakes, +1 for a quarter of the time still on the clock */
 const fastTime = (timer) => Math.ceil(timer/4);
@@ -1070,7 +1077,7 @@ const MissionSelect = ({progress,onPick,fun,setFun}) => {
       <button key={m.id} className={`mission-card ${st>0?"done":""} ${next&&next.id===m.id?"next":""}`} onClick={()=>{SFX.unlock();onPick(m);}}>
         <span className="mission-num">{m.num}</span><span className="mission-name">{m.name}</span>
         <span className="mission-stars">{"★".repeat(st)}<i>{"★".repeat(3-st)}</i></span>
-        <span className="mission-meta">{m.modules.length} modules · {fmtTime(m.timer)}</span>
+        <span className="mission-meta">{m.modules.length} module{m.modules.length===1?"":"s"} · {fmtTime(m.timer)}</span>
         {next&&next.id===m.id&&<span className="mission-next">NEXT</span>}</button>);})}</div>
     <div className="fun-row"><button onClick={()=>setFun(!fun)} className={`timer-btn ${fun?"active":""}`}>🎲 FUN MODE: {fun?"ON":"OFF"}</button><span>{FUN_NOTE}</span></div></div>);
 };
