@@ -38,6 +38,7 @@
 <script type="text/babel" src="modules/m11-monster-clinic.jsx"></script>
 <script type="text/babel" src="modules/m12-animal-race-day.jsx"></script>
 <script type="text/babel" src="modules/m13-teen-code.jsx"></script>
+<script type="text/babel" src="modules/m14-time-lock.jsx"></script>
 </head>
 <body>
 <div id="root"></div>
@@ -57,13 +58,29 @@ const generateSerialNumber = () => {
    Things on the bomb itself that manual rules can point at, besides the serial number:
    its color, how many batteries it has, and one sticker. The Defuser sees pictures only (no words),
    so they have to say it in English: "The bomb is green. It has three batteries. There is a cat."
-   Each feature is read by one module: color = Vending Machine, batteries = Big Button, sticker = Word Buttons. */
+   Each feature is read by: color = Vending Machine, batteries = Big Button and Time Lock, sticker = Word Buttons. */
 const BOMB_COLORS = { red:"#e04848", blue:"#3f6fd8", green:"#3f9e45", yellow:"#f7d843", purple:"#a65bd6" };
 const BOMB_STICKERS = [...["cat","dog","bird","rabbit","monkey","tiger"].map(name=>({name,kind:"animal"})), ...["apple","banana","cake","egg","pizza","bread"].map(name=>({name,kind:"food"}))];
-const makeBomb = () => { const pick=(a)=>a[Math.floor(Math.random()*a.length)]; return { color:pick(Object.keys(BOMB_COLORS)), batteries:1+Math.floor(Math.random()*4), sticker:pick(BOMB_STICKERS) }; };
-const DEFAULT_BOMB = { color:"red", batteries:1, sticker:BOMB_STICKERS[0] }; /* for a module drawn outside a bomb (test pages) */
+const makeBomb = () => { const pick=(a)=>a[Math.floor(Math.random()*a.length)]; const batteries=1+Math.floor(Math.random()*4); return { color:pick(Object.keys(BOMB_COLORS)), batteries, batteryTypes:Array.from({length:batteries},()=>pick(BATTERY_TYPES)), sticker:pick(BOMB_STICKERS) }; };
+const DEFAULT_BOMB = { color:"red", batteries:1, batteryTypes:["AA"], sticker:BOMB_STICKERS[0] }; /* for a module drawn outside a bomb (test pages) */
 const stickerSrc = (st) => st.kind==="animal" ? PX.animal(st.name) : PX.food(st.name);
-const batterySrc = (() => { let src=null; return () => src || (src = PX.render(8, 14, [{ sprite: PX.sprite("battery", ["..gggg..", ".yyyyyy.", ".yYYYYy.", ".GGGGGG.", ".GGGGGG.", ".GGWGGG.", ".GWWWGG.", ".GGWGGG.", ".GGGGGG.", ".GGGGGG.", ".GGGGGG.", ".GGGGGG.", ".GGGGGG.", "..GGGG.."]) }])); })();
+/* Batteries: each one is "AA" (double A) or "AAA" (triple A), printed on it instead of a "+". They lie on their side,
+   and a AAA is a little shorter and thinner than a AA, like the real ones. Both are drawn on the same size canvas so
+   they line up in the 2-column grid. bomb.batteries is the count; bomb.batteryTypes[i] is each type. */
+const BATTERY_TYPES = ["AA","AAA"];
+const BATTERY_CANVAS = { w:30, h:13 }; /* shown at 3x */
+const batterySrc = (() => { const cache={}; const A=[".W.","W.W","WWW","W.W","W.W"];
+  const SIZE = { AA:{ len:24, thick:11 }, AAA:{ len:20, thick:9 } }; /* body length incl. the yellow cap, not the nub */
+  return (type="AA") => cache[type] || (cache[type] = (() => {
+    const { w:W, h:H } = BATTERY_CANVAS, { len, thick } = SIZE[type], x0=1, y0=Math.floor((H-thick)/2), cap=3;
+    const g = Array.from({length:H}, () => Array(W).fill("."));
+    for (let y=y0; y<y0+thick; y++) for (let x=x0; x<x0+len; x++) g[y][x] = x>=x0+len-cap ? (y===y0+thick-1 ? "Y" : "y") : "G";
+    g[y0][x0] = g[y0+thick-1][x0] = "."; /* rounded back end */
+    const nubH = Math.ceil(thick/2), ny = y0+Math.floor((thick-nubH)/2);
+    for (let y=ny; y<ny+nubH; y++) for (let x=x0+len; x<x0+len+2; x++) g[y][x] = "g";
+    const tw = type.length*4-1, tx = x0+Math.floor((len-cap-tw)/2), ty = y0+Math.floor((thick-5)/2);
+    for (let k=0; k<type.length; k++) A.forEach((line,dy)=>[...line].forEach((c,dx)=>{ if(c==="W") g[ty+dy][tx+k*4+dx]="W"; }));
+    return PX.render(W, H, [{ sprite: PX.sprite("battery-"+type, g.map(r=>r.join(""))) }]); })()); })();
 const NUMBER_WORDS = ["zero","one","two","three","four","five"];
 
 const getLastDigit = (sn) => parseInt(sn.replace(/[^0-9]/g, "").slice(-1)) || 0;
@@ -1036,7 +1053,7 @@ const BombComponent = ({config,team,onGameEnd}) => {
     {gameStatus==="countdown"&&<div className="countdown-overlay"><div className="countdown-number">{countdown>0?countdown:"GO!"}</div></div>}
     <div className="bomb-header"><div className="timer-display" style={{color:tc,textShadow:`0 0 15px ${tc}`}}>{Math.floor(timeLeft/60)}:{String(timeLeft%60).padStart(2,"0")}{strikes>0&&<span className="speed-badge">⏩ ×{speed}</span>}</div>
       <div className="serial-display">{team&&<div className="team-tag">{team[0]} {team[1]}{config.mission?` · MISSION ${config.mission.num}`:""}</div>}<span className="serial-label">SN:</span><span className="serial-value">{serialNumber}</span><div className="manual-code-tag">MANUAL CODE {getManualCode()}</div></div>
-      <div className="bomb-plate"><span className="battery-row">{Array.from({length:bomb.batteries},(_,i)=>(<img key={i} className="pixel-art" alt="battery" src={batterySrc()} width={24} height={42}/>))}</span><span className="sticker"><img className="pixel-art" alt={bomb.sticker.name} src={stickerSrc(bomb.sticker)} width={48} height={48}/></span></div>
+      <div className="bomb-plate"><span className="battery-row">{Array.from({length:bomb.batteries},(_,i)=>{const t=(bomb.batteryTypes||[])[i]||"AA";return <img key={i} className="pixel-art" alt={`${t} battery`} src={batterySrc(t)} width={BATTERY_CANVAS.w*3} height={BATTERY_CANVAS.h*3}/>;})}</span><span className="sticker"><img className="pixel-art" alt={bomb.sticker.name} src={stickerSrc(bomb.sticker)} width={48} height={48}/></span></div>
       <div className="strikes-display">{Array.from({length:maxStrikes},(_,i)=>(<span key={i} className={`strike-indicator ${i<strikes?"active":""}`}>{i<strikes?"❌":"⭕"}</span>))}<button className="mute-btn" aria-label={muted?"sound off":"sound on"} onClick={()=>{SFX.setMuted(!muted);setMuted(!muted);}}>{muted?"🔇":"🔊"}</button></div></div>
     <div className={`modules-grid ${dark?"lights-out":""}`}>{config.modules.map(mod=>(<ModuleWrapper key={mod.id} module={mod} serialNumber={serialNumber} bomb={bomb} locked={finaleLocked&&mod.id===config.finaleId} finale={mod.id===config.finaleId} onComplete={id=>{stat(id).solved=true;if(completed.length+1<config.modules.length)SFX.defuse();setCompleted(p=>[...p,id]);}} onStrike={()=>handleStrike(mod.id)}/>))}{config.fun&&<BombQuiz bomb={bomb} active={gameStatus==="playing"} onStrike={()=>handleStrike("fun")}/>}</div></div>);
 };
@@ -1209,7 +1226,7 @@ function App(){
       .module-wrapper.finale:not(.success){border-color:#ff8800;box-shadow:0 0 22px rgba(255,136,0,0.35);animation:finaleIn 0.6s ease;}
       @keyframes finaleIn{0%{transform:scale(0.92);}60%{transform:scale(1.04);}100%{transform:scale(1);}}
       .bomb-container{border-width:4px;}
-      .bomb-plate{display:flex;align-items:center;gap:0.9rem;}.battery-row{display:flex;gap:3px;align-items:flex-end;}
+      .bomb-plate{display:flex;align-items:center;gap:0.9rem;}.battery-row{display:grid;grid-template-columns:repeat(2,auto);gap:4px 6px;}
       .sticker{display:inline-flex;background:#f6f4ef;border-radius:8px;padding:4px;transform:rotate(-6deg);box-shadow:1px 2px 4px rgba(0,0,0,0.5);}
       .modules-grid{transition:filter 0.25s;}.modules-grid.lights-out{filter:brightness(0.06);animation:flicker 0.5s steps(2) 1;}
       @keyframes flicker{0%{filter:brightness(1);}25%{filter:brightness(0.06);}50%{filter:brightness(0.8);}100%{filter:brightness(0.06);}}
