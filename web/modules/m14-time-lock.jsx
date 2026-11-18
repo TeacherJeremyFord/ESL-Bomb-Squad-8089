@@ -1,4 +1,4 @@
-/* ===== M14 TIME LOCK (B1: telling time, digital and analogue, three clocks in a row) =====
+/* ===== M14 TIME LOCK (A1: telling time, digital and analogue, three clocks in a row) =====
  * Three clocks behind three doors. Set each one and press SET; a right time opens the door and the next
  * clock slides up. A wrong time is a strike and the whole module starts again at clock 1 with new times.
  *   Clock 1 (digital): starts at a time. The Expert works out a new time from the CLOCK color (how many
@@ -196,7 +196,7 @@
   document.head.appendChild(css);
 
   (window.EXTRA_MODULES = window.EXTRA_MODULES || []).push({
-    id: "timeLock", name: "⏰ Time Lock", type: "timeLock", difficulty: "B1",
+    id: "timeLock", name: "⏰ Time Lock", type: "timeLock", difficulty: "A1",
     Component: TimeLockModule, Manual: TimeLockManual,
     _test: Object.assign(TEST, { makeRound, clock1Target, clock2Target, clock3Target, addMin, CASE, DIGITS, FRAME, HANDS, NUMS, same }),
   });

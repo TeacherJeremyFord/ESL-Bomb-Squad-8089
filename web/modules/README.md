@@ -53,7 +53,7 @@ table or codebook changes; change `CYCLE` in `manual-kit.js` for new rounds (and
 
 M01 A2 · M02 A2 · M03 A2+ (one weather change) · M04 A2 · M05 B1 · M06 A2 · M07 B1 · M08 B1 · M09 B1 ·
 M10 A2 · M11 B1 · M12 B1 (gate 2.0 s instead of 1.5 s) · M13 A2 + B1 "Twins" (400-list numbers; the lock number's parity picks the tier).
-M14 Time Lock B1 (fixed manual: digital clock from colors + batteries, round clock from colors, round clock from memory). Each file's header says what differs from the spec.
+M14 Time Lock A1 (fixed manual: digital clock from colors + batteries, round clock from colors, round clock from memory). Each file's header says what differs from the spec.
 
 ## Tests
 
