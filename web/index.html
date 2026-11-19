@@ -90,6 +90,22 @@ const getFirstLetter = (sn) => sn.split("").find(c => /[A-Z]/i.test(c))?.toUpper
 const getAllDigits = (sn) => sn.replace(/[^0-9]/g, "");
 const countLetters = (sn) => sn.replace(/[^A-Z]/gi, "").length;
 
+/* ===== TWO LEVELS PER MODULE =====
+   difficulty = the ENGLISH level (A0-B2): the words and sentences the players need.
+   puzzle     = the PUZZLE level (1-4): the thinking steps between seeing the bomb and pressing the right thing.
+     1  one lookup, one action                      (Guess Who: three facts -> one name)
+     2  combine 2-3 facts, or a short rule list     (Color Wires: first rule that fits)
+     3  conditions, sums, timing, or a reverse step (Sliders: change three numbers)
+     4  several stages, memory, or starting over    (Memory: stages that point back)
+   They are separate on purpose: a module can be easy English and a hard puzzle, or the other way round.
+   A module file can set its own `puzzle` (Time Lock does, one per version); otherwise it comes from here. */
+const PUZZLE_LEVEL = {
+  colorWires:2, userName:2, monsterLab:2, guessWho:1, vendingMachine:2, symbolKeypad:2, numberKeypad:2, bigButton:2,
+  sliders:3, crackTheCode:4, wordButtons:2, memory:4, symbolPanel:1, colorSwitchboard:2, worldClock:3, combinationLock:3,
+  familyPhoto:3, lunchRush:4, weatherWardrobe:3, schoolBell:3, ticketMachine:4, messyDesk:3, midnightSnack:4, mysteryGuest:4,
+  moodPlugs:2, giftShop:3, monsterClinic:3, animalRace:3, teenCode:1, teenCodeTwins:1,
+};
+const puzzleTag = (n) => "🧩"+n;
 const MODULES_LIST = [
   { id:"colorWires", name:"🔌 Color Wires", type:"colorWires", difficulty:"A1" },
   { id:"userName", name:"👤 User Name", type:"userName", difficulty:"A1" },
@@ -107,7 +123,8 @@ const MODULES_LIST = [
   { id:"colorSwitchboard", name:"🎛️ Switchboard", type:"colorSwitchboard", difficulty:"B1" },
   { id:"worldClock", name:"🌍 World Clock", type:"worldClock", difficulty:"B1" },
   { id:"combinationLock", name:"🔒 Combo Lock", type:"combinationLock", difficulty:"B1" },
-].concat((window.EXTRA_MODULES||[]).map(({id,name,type,difficulty})=>({id,name,type,difficulty})));
+].concat((window.EXTRA_MODULES||[]).map(({id,name,type,difficulty,puzzle})=>({id,name,type,difficulty,puzzle})))
+ .map(m=>({...m,puzzle:m.puzzle||PUZZLE_LEVEL[m.id]||2}));
 
 /* ===================== MODULES ===================== */
 
@@ -905,19 +922,26 @@ const PrintManual = ({only,label}) => {
 /* fair shuffle (Fisher–Yates) for drawing a mission from the module pool */
 const shuffled = (arr) => { const a=[...arr]; for(let i=a.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[a[i],a[j]]=[a[j],a[i]];} return a; };
 const rankOf = (m) => ["A0","A1","A2","B1","B2"].indexOf(String(m.difficulty).slice(0,2));
-/* setup list order: difficulty first, then A–Z by name (ignoring the emoji) */
+/* setup list order: English level, then puzzle level, then A–Z by name (ignoring the emoji) */
 const SORTED_MODULES = (() => { const rank=(m)=>rankOf(m), nm=(m)=>m.name.replace(/^[^A-Za-z]+/,"");
-  return [...MODULES_LIST].sort((x,y)=>rank(x)-rank(y)||nm(x).localeCompare(nm(y))); })();
+  return [...MODULES_LIST].sort((x,y)=>rank(x)-rank(y)||x.puzzle-y.puzzle||nm(x).localeCompare(nm(y))); })();
+/* how hard a module is overall, for picking the finale: English and puzzle both count */
+const hardness = (m) => rankOf(m)+m.puzzle;
 /* ===== CAMPAIGN =====
    One line per mission: edit freely. `modules` are module ids; the LAST one is the finale
-   (it stays locked until the others are defused; needs 3 or more modules). `timer` is in seconds. */
+   (it stays locked until the others are defused; needs 3 or more modules). `timer` is in seconds.
+   The order follows both levels (see PUZZLE_LEVEL): at each English level the puzzles get harder first, and only
+   then does the English go up, so students never meet new words and a new kind of thinking in the same step.
+   The `id` is where a device keeps the stars, so a mission keeps its id when it moves; a new mission gets the next
+   unused id, wherever it goes in the list. Each card shows the mission's levels (the highest module's). */
 const MISSIONS = [
   { id:"m1",  name:"Just Wires",       timer:300, modules:["colorWires"] },
-  { id:"m2",  name:"Just Clocks",      timer:300, modules:["timeLock"] },
+  { id:"m2",  name:"Just Clocks",      timer:300, modules:["timeLockOne"] },
   { id:"m3",  name:"Just Monsters",    timer:300, modules:["monsterLab"] },
   { id:"m4",  name:"First Bomb",       timer:300, modules:["colorWires","monsterLab"] },
   { id:"m5",  name:"Who Is It?",       timer:300, modules:["userName","colorWires","guessWho"] },
   { id:"m6",  name:"Snack Time",       timer:300, modules:["symbolKeypad","monsterLab","vendingMachine"] },
+  { id:"m16", name:"Tick Tock",        timer:420, modules:["userName","vendingMachine","timeLockTwo"] },
   { id:"m7",  name:"Number Day",       timer:420, modules:["numberKeypad","teenCode","sliders","bigButton"] },
   { id:"m8",  name:"Family Day",       timer:420, modules:["wordButtons","guessWho","familyPhoto"] },
   { id:"m9",  name:"Lunch Time",       timer:420, modules:["vendingMachine","giftShop","lunchRush"] },
@@ -945,6 +969,8 @@ const STORE = {
   if(v<2) p=shift(p,1,2);
   p=shift(p,2,1);
   STORE.set("progress",p); STORE.set("progressIds",3); })();
+const missionLevels = (m) => { const mods=m.modules.map(id=>MODULES_LIST.find(x=>x.id===id));
+  const eng=mods.reduce((a,b)=>rankOf(b)>rankOf(a)?b:a).difficulty, pz=Math.max(...mods.map(x=>x.puzzle)); return `English ${String(eng).slice(0,2)} · Puzzle ${puzzleTag(pz)}`; };
 const fmtTime = (t) => `${Math.floor(t/60)}:${String(t%60).padStart(2,"0")}`;
 /* stars: 1 for defusing the bomb, +1 for 0–1 mistakes, +1 for a quarter of the time still on the clock */
 const fastTime = (timer) => Math.ceil(timer/4);
@@ -959,7 +985,7 @@ const buildMission = (spec) => {
     let ids=shuffled(spec.pool).slice(0,spec.count);
     while(ids.length<spec.count)ids=[...ids,...shuffled(spec.pool).slice(0,spec.count-ids.length)]; /* pool smaller than the count: fill with copies, spread evenly */
     order=shuffled(ids); hasFinale=!!spec.finale&&order.length>=3;
-    if(hasFinale){ /* the hardest module is the finale */ const r=(id)=>rankOf(MODULES_LIST.find(m=>m.id===id)); const top=order.reduce((a,b)=>r(b)>r(a)?b:a); const i=order.indexOf(top); order=[...order.slice(0,i),...order.slice(i+1),top]; }
+    if(hasFinale){ /* the hardest module is the finale */ const r=(id)=>hardness(MODULES_LIST.find(m=>m.id===id)); const top=order.reduce((a,b)=>r(b)>r(a)?b:a); const i=order.indexOf(top); order=[...order.slice(0,i),...order.slice(i+1),top]; }
   }
   /* each copy gets its own id so the bomb can tell copies apart */
   const modules=order.map((id,i)=>({...MODULES_LIST.find(m=>m.id===id),id:id+"#"+i,baseId:id}));
@@ -987,7 +1013,7 @@ const SettingsPanel = ({onStartGame,fun,setFun}) => {
     <div className="setting-group"><label>MODULES: {moduleCount}</label><input type="range" min={1} max={10} value={moduleCount} onChange={e=>changeCount(Number(e.target.value))} className="module-slider"/></div>
     <div className="setting-group"><label>MODULE POOL ({sel.length} selected)</label>
       <p className="pool-note">{sel.length>moduleCount?`Each bomb gets ${moduleCount} of these ${sel.length} at random.`:sel.length===moduleCount?`Every bomb gets these ${moduleCount}. Add more for a random pick.`:sel.length===1?`Every bomb gets ${moduleCount} copies of this module.`:`Every bomb gets these ${sel.length}, plus ${moduleCount-sel.length} more ${moduleCount-sel.length===1?"copy":"copies"} to make ${moduleCount}.`}</p>
-      <div className="module-toggles">{SORTED_MODULES.map(mod=>(<button key={mod.id} onClick={()=>toggle(mod.id)} className={`module-toggle ${sel.includes(mod.id)?"active":""} ${sel.length===1&&sel.includes(mod.id)?"locked":""}`}><span className="toggle-name">{mod.name}</span><span className="toggle-diff">{mod.difficulty}</span></button>))}</div></div>
+      <div className="module-toggles">{SORTED_MODULES.map(mod=>(<button key={mod.id} onClick={()=>toggle(mod.id)} className={`module-toggle ${sel.includes(mod.id)?"active":""} ${sel.length===1&&sel.includes(mod.id)?"locked":""}`}><span className="toggle-name">{mod.name}</span><span className="toggle-diff">{mod.difficulty} · {puzzleTag(mod.puzzle)}</span></button>))}</div></div>
     <div className="setting-group"><label>LAST MODULE</label><div className="timer-selector"><button onClick={()=>setFinale(true)} className={`timer-btn ${finale?"active":""}`}>🔒 LOCKED UNTIL THE END</button><button onClick={()=>setFinale(false)} className={`timer-btn ${!finale?"active":""}`}>ALL OPEN</button></div>
       <p className="pool-note" style={{marginTop:"0.5rem"}}>{finale?(moduleCount>=3?"The hardest module stays locked until the others are defused.":"Needs 3 or more modules, so this bomb has no lock."):"All modules can be played from the start."}</p></div>
     <div className="setting-group"><label>FUN MODE</label><div className="timer-selector"><button onClick={()=>setFun(false)} className={`timer-btn ${!fun?"active":""}`}>OFF</button><button onClick={()=>setFun(true)} className={`timer-btn ${fun?"active":""}`}>🎲 ON</button></div>
@@ -1102,7 +1128,7 @@ const MissionSelect = ({progress,onPick,fun,setFun}) => {
       <button key={m.id} className={`mission-card ${st>0?"done":""} ${next&&next.id===m.id?"next":""}`} onClick={()=>{SFX.unlock();onPick(m);}}>
         <span className="mission-num">{m.num}</span><span className="mission-name">{m.name}</span>
         <span className="mission-stars">{"★".repeat(st)}<i>{"★".repeat(3-st)}</i></span>
-        <span className="mission-meta">{m.modules.length} module{m.modules.length===1?"":"s"} · {fmtTime(m.timer)}</span>
+        <span className="mission-meta">{m.modules.length} module{m.modules.length===1?"":"s"} · {fmtTime(m.timer)}</span><span className="mission-meta">{missionLevels(m)}</span>
         {next&&next.id===m.id&&<span className="mission-next">NEXT</span>}</button>);})}</div>
     <div className="fun-row"><button onClick={()=>setFun(!fun)} className={`timer-btn ${fun?"active":""}`}>🎲 FUN MODE: {fun?"ON":"OFF"}</button><span>{FUN_NOTE}</span></div></div>);
 };

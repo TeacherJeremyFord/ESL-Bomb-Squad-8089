@@ -46,6 +46,6 @@
     press(); await sleep(900); }
   HLOG(`end: won=${WON}, strikes ${STRIKES}, lamps ${lamps()}, buttons disabled ${btns().every(b => b.disabled)}`);
   const m = document.getElementById("m").textContent;
-  HLOG(`manual: has 3 clocks ${/Clock 1/.test(m) && /Clock 2/.test(m) && /Clock 3/.test(m)}, has "earlier" ${/earlier/.test(m)}`);
+  HLOG(`manual: has 3 clocks ${/Clock 1/.test(m) && /Clock 2/.test(m) && /Clock 3/.test(m)}, has "before" ${/before/.test(m)}`);
   HLOG("DONE");
 } catch (e) { HLOG("TEST ERROR " + e.message + " " + (e.stack || "").split("\n")[1]); } })();

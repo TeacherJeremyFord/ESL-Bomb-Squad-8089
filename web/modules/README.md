@@ -7,7 +7,10 @@ game (`web/index.html`).
 ## Adding a module
 
 1. Write `modules/mXX-name.jsx`, wrapped in `(() => { … })();` so its names don't clash with the game's.
-2. Push `{ id, name, type, difficulty, Component, Manual }` onto `window.EXTRA_MODULES`.
+2. Push `{ id, name, type, difficulty, puzzle, Component, Manual }` onto `window.EXTRA_MODULES`.
+   - `difficulty` is the **English** level (A0–B2); `puzzle` is the **puzzle** level (1–4, see `PUZZLE_LEVEL` in
+     `index.html`). They are separate: the same words can come as an easy or a hard puzzle. Leave `puzzle` out to
+     use the `PUZZLE_LEVEL` table. One file can register several puzzle versions of one module (Time Lock does).
    - `Component({ serialNumber, bomb, onSuccess, onStrike })` is the Defuser's screen.
      `bomb` is `{ color, batteries, sticker: { name, kind } }`: what the bomb looks like (see BOMB FEATURES in
      `index.html`). A rule can read it instead of the serial; give `bomb` a default, since the test harness doesn't pass one.
@@ -53,7 +56,7 @@ table or codebook changes; change `CYCLE` in `manual-kit.js` for new rounds (and
 
 M01 A2 · M02 A2 · M03 A2+ (one weather change) · M04 A2 · M05 B1 · M06 A2 · M07 B1 · M08 B1 · M09 B1 ·
 M10 A2 · M11 B1 · M12 B1 (gate 2.0 s instead of 1.5 s) · M13 A2 + B1 "Twins" (400-list numbers; the lock number's parity picks the tier).
-M14 Time Lock A1 (fixed manual: digital clock from colors + batteries, round clock from colors, round clock from memory). Each file's header says what differs from the spec.
+M14 Time Lock A1 in three puzzle versions: One Clock 🧩1, Two Clocks 🧩3, Time Lock 🧩4 (fixed manuals). Each file's header says what differs from the spec.
 
 ## Tests
 
