@@ -60,7 +60,9 @@ if (argv.includes("--help") || argv.includes("-h")) {
   --out DIR              report folder (default tools/playtest/reports/<time>)
   --peek                 only print what each player would see at the start (no model calls);
                          add --do '[{"click":1},{"watch":3000}]' to try actions by hand
-  --quiet                do not print the talk as it happens`);
+  --quiet                do not print the talk as it happens
+  --paper                the Expert gets only the PRINTED manual (the paper text, for the modules on
+                         this bomb) and cannot click anything: tests the paper copy`);
   process.exit(0);
 }
 const API = opt("api", process.env.PLAYTEST_API || "http://localhost:1234/v1");
@@ -310,7 +312,12 @@ You are the DEFUSER. You see the bomb. You do not have the manual and you do not
 ${REPLY("DEFUSER", `   {"give_up": "why"}
 Use give_up only when a module cannot be played from this text at all (for example a picture you must describe has no description). Say exactly what you could not see.
 Some modules move on their own: "WHAT CHANGED ON THE BOMB" lists what appeared or went while you were talking or waiting. Use {"wait": ms} to let time pass and watch.`)}`;
-const EXPERT = `${RULES}
+const PAPER = !!opt("paper");
+const EXPERT_PAPER = `${RULES}
+
+You are the EXPERT. You have a PRINTED paper manual: its text is shown below. You cannot see the bomb, so ask the Defuser what you need to know, find the right part of the manual, and tell them exactly what to do. It is paper: there is nothing to click or type, so do not use any actions. Some sections have a codebook: ask the Defuser for the number on their module and find it in the list.
+${REPLY("EXPERT", "")}`;
+const EXPERT = PAPER ? EXPERT_PAPER : `${RULES}
 
 You are the EXPERT. You see the manual. You cannot see the bomb, so ask the Defuser what you need to know, read the right part of the manual, and tell them exactly what to do. The manual has one section for each module: click a section title to open it. Some sections have boxes and buttons for you to use.
 ${REPLY("EXPERT", "")}`;
@@ -403,6 +410,15 @@ const playBomb = async ({ label, bomb, manual, book, setup, moduleCount, dir }) 
   let st = await bombState(bomb);
   if (!st.playing) throw new Error("the bomb did not start");
   await bomb.heard(); /* drop the countdown sounds */
+  if (PAPER) { /* show the paper manual instead of the on-screen one, with only this bomb's sections */
+    const titles = await book.eval(`[...document.querySelectorAll(".manual-section h2")].map(h => h.textContent.replace(/[▶▼]\\s*$/, "").trim())`);
+    const keep = ["💣 The Bomb", ...(await bomb.snap(HIDE_BOMB)).split("\n").filter((l) => l.trim().startsWith("## ")).map((l) => matchSection(titles, l.trim().slice(3).split(" · ")[0])).filter(Boolean)];
+    await manual.eval(`(() => { const s = document.createElement("style"); s.textContent = ".no-print{display:none!important}.print-manual{display:block!important}"; document.head.appendChild(s);
+      const pm = document.querySelector(".print-manual"), frame = pm && pm.querySelector(".pm-frame"); /* the page frame is a table: unwrap it so the text keeps its lines */
+      if (frame) { const body = frame.querySelector("tbody td"); while (body.firstChild) pm.appendChild(body.firstChild); frame.remove(); }
+      const keep = ${JSON.stringify(keep)}; document.querySelectorAll(".print-manual .manual-section").forEach(sec => { const h = sec.querySelector("h2"); if (h && !keep.includes(h.textContent.trim())) sec.style.display = "none"; });
+      const m = document.querySelector(".print-manual"); return m ? m.innerText.length : 0; })()`);
+  }
   if (opt("peek")) { /* show what the players would see, without calling the model */
     console.log("\n===== DEFUSER SCREEN =====\n" + await bomb.snap(HIDE_BOMB));
     if (opt("do")) { for (const a of JSON.parse(opt("do"))) console.log("  do " + JSON.stringify(a) + " → " + (a.watch ? (await bomb.watch(a.watch, HIDE_BOMB, changes), "watched") : await bomb.act(a)));
@@ -410,6 +426,7 @@ const playBomb = async ({ label, bomb, manual, book, setup, moduleCount, dir }) 
     const titles = await book.eval(`[...document.querySelectorAll(".manual-section h2")].map(h => h.textContent.replace(/[▶▼]\\s*$/, "").trim())`);
     for (const h of (await bomb.snap(HIDE_BOMB)).split("\n").filter((l) => l.trim().startsWith("## ")).map((l) => l.trim().slice(3).split(" · ")[0])) { const t = matchSection(titles, h);
       console.log(`\n===== MANUAL SECTION for "${h}" → ${t || "NOT FOUND"} =====\n` + (t ? await readSection(book, t) : "")); }
+    if (PAPER) console.log("\n===== EXPERT'S PAPER MANUAL =====\n" + await manual.snap(HIDE_MANUAL));
     return null; }
   const startTime = st.time; const maxTurns = TURNS * Math.max(1, moduleCount);
   /* the right manual pages for the modules on this bomb, read on a third tab the players never see */
@@ -485,6 +502,7 @@ const writeReport = (results, tot, failed) => {
   const icon = (r) => r.outcome === "DEFUSED" ? "✅" : r.outcome === "EXPLODED" ? "💥" : r.outcome === "GAVE UP" ? "🚫" : "⏳";
   const rel = (r) => path.relative(OUT, path.join(r.dir, "transcript.md"));
   let md = `# ESL Bomb Squad play-test\n\n${new Date().toString()}\n\nModel **${MODEL}** at ${API} · ${results.length} bombs played · ${calls} model calls (about ${calls ? (tot.minutes * 60 / calls).toFixed(0) : 0} s each) · ${mins} minutes\n\n`;
+  if (PAPER) md += `**PAPER MODE:** the Expert had only the printed manual (no clicking, no type-in boxes).\n\n`;
   md += `Two copies of the model play as Defuser and Expert. A third copy is the referee: after every strike it reads both screens and the right manual page and rules on the cause. The referee is a model too, so treat a ruling as a pointer to the transcript, not as proof.\n\n`;
   const all = results.flatMap((r) => (r.rulings || []).map((x) => ({ ...x, r })));
   const pick = (c) => all.filter((x) => x.cause === c);
