@@ -1,4 +1,4 @@
-# Modules M01–M19
+# Modules M01–M21
 
 Each file here is one bomb module from `docs/design/modules/` (design + build spec). The build specs
 were written for the old multi-device Python server; these are their single-page versions for the live
@@ -61,6 +61,8 @@ M15 Day Order A1 🧩1: put the six parts of the day in order. Defuser only (the
 M16 Busy Week A2 🧩3, two versions on the same three fixed week planners (GRANDPA, MOM, SISTER): Busy Week (drag events into MORNING…MIDNIGHT) and Busy Week: When? (drag parts of the day next to shuffled events). Evening/night = the order of the two late events.
 M18 Greeting Door A1: a clock on a door, press GOOD MORNING/AFTERNOON/EVENING/NIGHT. 1 door 🧩1, Three Doors 🧩2, Five Doors 🧩3 (`makeModule(n)`). Practice module: the Defuser can do it alone; the manual has the full rule.
 M19 Meet Up A2 🧩3: the bomb shows YOUR DAY (six times + things); one is the same thing at the same time as the person's Busy Week planner; press that part of the day. Needs M16 loaded first (`window.BUSY_WEEK`). Each file's header says what differs from the spec.
+M20 Meeting Time A2 🧩3: like Meet Up, but the two players look for FREE time. The Expert has three fixed week calendars (DAD, BROTHER, TEACHER; 8 AM–9 PM, an empty box is free). The bomb shows YOUR CALENDAR: three days, six times each (four FREE buttons, two busy). Exactly one FREE time is free in the person's calendar too: press it. The Defuser's busy times are times when the person is free, so both players have to read their side. Fixed manual, independent of M16.
+M21 Lineup A1 🧩2: the bomb shows a CODENAME and six people in front of a height wall. The Expert's fixed table (12 codenames) gives five things: TALL/SHORT, LIGHT/DARK hair (light = white, blond or light brown; dark = black), LONG/SHORT hair, FAT/THIN, BLUE/BROWN eyes. Press the person, then ARREST. The lineup is built so two things are never enough, three are almost never enough, each thing has at least two people on each side, and the answer is never the 'most average' person. Wrong: strike, new codename and lineup. Sprites: `sprites/suspect.js`.
 M17 World Tour, the 7 continents and the 7 oceans (North/South Pacific, North/South Atlantic, Indian, Arctic, Southern) on a world map you can touch. The plane's color picks one of 8 fixed lists of four places; touch them in order. World Tour A1 🧩1 (names on the map) and World Tour: Blank Map A2 🧩2 (no names; the Expert's manual has the named map and "next to / between / north of" phrases). The lists come from `MANUAL.CYCLE`. The map is SVG: pinch/spread or + − ⟲ to zoom (up to 5×), drag to move; a drag is never a tap.
 
 ## Tests
