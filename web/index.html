@@ -39,6 +39,11 @@
 <script type="text/babel" src="modules/m12-animal-race-day.jsx"></script>
 <script type="text/babel" src="modules/m13-teen-code.jsx"></script>
 <script type="text/babel" src="modules/m14-time-lock.jsx"></script>
+<script type="text/babel" src="modules/m15-day-order.jsx"></script>
+<script type="text/babel" src="modules/m16-busy-week.jsx"></script>
+<script type="text/babel" src="modules/m17-world-tour.jsx"></script>
+<script type="text/babel" src="modules/m18-greeting-door.jsx"></script>
+<script type="text/babel" src="modules/m19-meet-up.jsx"></script>
 </head>
 <body>
 <div id="root"></div>
@@ -159,15 +164,18 @@ const UserNameModule = ({ serialNumber, onSuccess, onStrike }) => {
   const names={A:"ALICE",B:"BOB",C:"CHARLIE",D:"DAVID",E:"EVE",F:"FRANK",G:"GRACE",H:"HENRY",I:"IRIS",J:"JACK",K:"KATE",L:"LEO",M:"MARY",N:"NOAH",O:"OLIVE",P:"PETER",Q:"QUINN",R:"ROSE",S:"SAM",T:"TOM",U:"UMA",V:"VERA",W:"WILL",X:"XENA",Y:"YUKI",Z:"ZARA"};
   const correct = names[getLastLetter(serialNumber)]||"ALICE";
   // Typed, not chosen: the Expert has to spell the name out loud (design doc §2).
+  // Keep exactly what the keyboard sent and only clean it up on SUBMIT. Rewriting the value while typing
+  // (uppercasing it) breaks tablet/phone keyboards, which still "compose" the word: "kate" came out "KKAKATKATEKA".
+  // CSS shows it in capitals; case, spaces and other characters are ignored when checking.
   const [text,setText] = useState("");
   const [solved,setSolved] = useState(false);
   const [wrong,setWrong] = useState(false);
-  const submit = (e) => { e&&e.preventDefault(); if(solved||!text)return; if(text===correct){setSolved(true);onSuccess();} else {onStrike();setWrong(true);setTimeout(()=>setWrong(false),600);} };
+  const submit = (e) => { e&&e.preventDefault(); const typed=text.toUpperCase().replace(/[^A-Z]/g,""); if(solved||!typed)return; if(typed===correct){setSolved(true);onSuccess();} else {onStrike();setWrong(true);setTimeout(()=>setWrong(false),600);} };
   return (<div className="module-content"><h3>👤 USER NAME</h3><p className="module-hint">ENTER USER NAME</p>
     <form onSubmit={submit} style={{display:"flex",gap:"0.5rem"}}>
-      <input value={text} onChange={e=>setText(e.target.value.toUpperCase().replace(/[^A-Z]/g,""))} disabled={solved} maxLength={12} autoCapitalize="characters" autoComplete="off" autoCorrect="off" spellCheck={false} placeholder="NAME"
-        style={{flex:1,minWidth:0,padding:"0.6rem",fontSize:"1.3rem",fontFamily:"'Orbitron',sans-serif",letterSpacing:"3px",background:"#0a1520",color:solved?"#4caf50":"#0ff",border:`2px solid ${wrong?"#ff3b3b":solved?"#4caf50":"#333"}`,borderRadius:"4px"}}/>
-      <button type="submit" disabled={solved||!text} className={`option-btn ${solved?"correct":""}`} style={{minWidth:"90px"}}>{solved?"✓":"SUBMIT"}</button>
+      <input value={text} onChange={e=>setText(e.target.value)} disabled={solved} maxLength={12} autoCapitalize="characters" autoComplete="off" autoCorrect="off" spellCheck={false} placeholder="NAME"
+        style={{flex:1,minWidth:0,padding:"0.6rem",fontSize:"1.3rem",fontFamily:"'Orbitron',sans-serif",letterSpacing:"3px",textTransform:"uppercase",background:"#0a1520",color:solved?"#4caf50":"#0ff",border:`2px solid ${wrong?"#ff3b3b":solved?"#4caf50":"#333"}`,borderRadius:"4px"}}/>
+      <button type="submit" disabled={solved||!text.trim()} className={`option-btn ${solved?"correct":""}`} style={{minWidth:"90px"}}>{solved?"✓":"SUBMIT"}</button>
     </form></div>);
 };
 
@@ -884,7 +892,7 @@ const ExpertManual = ({only,print}) => {
     {(window.EXTRA_MODULES||[]).map((m,i,all)=>{
       // Two modules can share one manual (Teen Code + Teen Code: Twins). On paper, print it once.
       const first=all.find(x=>x.Manual===m.Manual), shown=!only||only.includes(first.id);
-      return (<S key={m.id} id={m.id} title={m.name}>{print&&first!==m&&shown?<p>Use the <strong>{first.name}</strong> section. It is the same.</p>:<m.Manual/>}</S>);})}
+      return (<S key={m.id} id={m.id} title={m.name}>{print&&first!==m&&shown?<p>Use the <strong>{first.name}</strong> section. It is the same.</p>:<m.Manual only={only}/>}</S>);})}
   </div></MANUAL.Print.Provider>);
 };
 

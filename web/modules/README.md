@@ -1,4 +1,4 @@
-# Modules M01–M14
+# Modules M01–M19
 
 Each file here is one bomb module from `docs/design/modules/` (design + build spec). The build specs
 were written for the old multi-device Python server; these are their single-page versions for the live
@@ -56,7 +56,12 @@ table or codebook changes; change `CYCLE` in `manual-kit.js` for new rounds (and
 
 M01 A2 · M02 A2 · M03 A2+ (one weather change) · M04 A2 · M05 B1 · M06 A2 · M07 B1 · M08 B1 · M09 B1 ·
 M10 A2 · M11 B1 · M12 B1 (gate 2.0 s instead of 1.5 s) · M13 A2 + B1 "Twins" (400-list numbers; the lock number's parity picks the tier).
-M14 Time Lock A1 in three puzzle versions: One Clock 🧩1, Two Clocks 🧩3, Time Lock 🧩4 (fixed manuals). Each file's header says what differs from the spec.
+M14 Time Lock A1 in three puzzle versions: One Clock 🧩1, Two Clocks 🧩3, Time Lock 🧩4 (fixed manuals).
+M15 Day Order A1 🧩1: put the six parts of the day in order. Defuser only (the manual says so, and gives no answer).
+M16 Busy Week A2 🧩3, two versions on the same three fixed week planners (GRANDPA, MOM, SISTER): Busy Week (drag events into MORNING…MIDNIGHT) and Busy Week: When? (drag parts of the day next to shuffled events). Evening/night = the order of the two late events.
+M18 Greeting Door A1: a clock on a door, press GOOD MORNING/AFTERNOON/EVENING/NIGHT. 1 door 🧩1, Three Doors 🧩2, Five Doors 🧩3 (`makeModule(n)`). Practice module: the Defuser can do it alone; the manual has the full rule.
+M19 Meet Up A2 🧩3: the bomb shows YOUR DAY (six times + things); one is the same thing at the same time as the person's Busy Week planner; press that part of the day. Needs M16 loaded first (`window.BUSY_WEEK`). Each file's header says what differs from the spec.
+M17 World Tour, the 7 continents and the 7 oceans (North/South Pacific, North/South Atlantic, Indian, Arctic, Southern) on a world map you can touch. The plane's color picks one of 8 fixed lists of four places; touch them in order. World Tour A1 🧩1 (names on the map) and World Tour: Blank Map A2 🧩2 (no names; the Expert's manual has the named map and "next to / between / north of" phrases). The lists come from `MANUAL.CYCLE`. The map is SVG: pinch/spread or + − ⟲ to zoom (up to 5×), drag to move; a drag is never a tap.
 
 ## Tests
 
