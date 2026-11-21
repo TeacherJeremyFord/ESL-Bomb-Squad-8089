@@ -1,0 +1,31 @@
+(async () => { try {
+  const T = EXTRA_MODULES.find(m => m.id === "giftShopList")._test, sleep = (ms) => new Promise(r => setTimeout(r, ms)), errs = [];
+  const sz = (b) => Object.values(b).reduce((a, n) => a + n, 0); let t0 = performance.now(), maxS = 0;
+  for (let c = 1000; c < 1400; c++) { const s = T.listShop(c), wants = T.PL_GUIDE[s.who].wants, inS = wants.filter(w => s.stock.includes(w));
+    if (s.stock.length !== 8) errs.push("stock size"); if (inS.length < 2 || inS.length > 4) errs.push("wanted in stock");
+    if (wants.length - inS.length < 2) errs.push("wanted out of stock");
+    const sols = T.solve(inS, s.wallet, s.prices); maxS = Math.max(maxS, sols.length);
+    if (sols.length < 1 || sols.length > 4) errs.push("solution count"); if (sols.some(b => Object.keys(b).length < 2 || sz(b) > 6)) errs.push("gift size or one kind");
+    if (!sols.every(b => T.plGood(b, s))) errs.push("rule mismatch");
+    if (T.solve(wants, s.wallet, s.prices).length <= sols.length) errs.push("stock doesn't matter");
+    if (s.wallet < 100 || s.wallet > 500 || s.wallet % 10) errs.push("wallet");
+    if (Object.keys(s.prices).length !== T.CATALOG.length) errs.push("price list"); }
+  HLOG(`400 shops: ${errs.length} errors ${[...new Set(errs)]}; max good gifts ${maxS}`);
+  await sleep(300);
+  const D = document.getElementById("d"); let s = T.plShop;
+  const shown = [...D.querySelectorAll(".gs-item span")].map(x => x.textContent);
+  HLOG(`shop ${s.code}: for ${s.who}, ${D.querySelector(".gs-money").textContent} stock [${shown}] prices shown on bomb: ${D.querySelectorAll(".gs-tag").length}`);
+  HLOG(`good gifts ${JSON.stringify(s.answers)}`);
+  const btn = (it) => [...D.querySelectorAll(".gs-item")].find(x => x.querySelector("span:not(.gs-thanks)").textContent === it);
+  const add = async (it, n) => { for (let i = 0; i < n; i++) { btn(it).click(); await sleep(20); } };
+  const pay = async () => { [...D.querySelectorAll("button")].find(x => x.textContent === "PAY").click(); await sleep(60); };
+  const unwanted = s.stock.find(it => !T.PL_GUIDE[s.who].wants.includes(it));
+  for (const [it, n] of Object.entries(s.answers[0])) await add(it, n); await add(unwanted, 1); const c0 = s.code; await pay();
+  s = T.plShop; HLOG(`good gift + unwanted ${unwanted}: strikes ${STRIKES}, shop ${c0} -> ${s.code}, basket empty ${D.querySelector(".gs-basket i") !== null}`);
+  for (const [it, n] of Object.entries(s.answers[s.answers.length - 1])) await add(it, n); await pay();
+  HLOG(`good gift in new shop: won=${WON}, strikes ${STRIKES}`);
+  const M = document.getElementById("m"), inp = M.querySelector("input"), set = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value").set;
+  set.call(inp, String(s.code)); inp.dispatchEvent(new Event("input", { bubbles: true })); await sleep(30); [...M.querySelectorAll("button")].find(x => x.textContent === "SHOW").click(); await sleep(60);
+  const rows = [...M.querySelectorAll(".gs-prow")]; HLOG(`expert price list: ${rows.length} rows, e.g. ${rows[2].textContent}`);
+  HLOG("DONE");
+} catch (e) { HLOG("TEST ERROR " + e.message + " " + (e.stack||"").split("\n")[1]); } })();

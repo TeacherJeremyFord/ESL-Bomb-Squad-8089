@@ -32,6 +32,7 @@ same round from a seeded RNG.
 | M08 Mystery Guest | PARTY NUMBER + ANSWER CODE per question | witness notes; the bomb's answers |
 | M09 Mood Plugs | PLUG NUMBER | the sentences |
 | M10 Gift Shop | SHOP NUMBER | the wallet |
+| M10 Gift Shop: Price List | SHOP NUMBER (new one on a strike) | the price list for all 18 things |
 | M12 Animal Race Day | RACE NUMBER | the entry list |
 | M13 Teen Code | LOCK NUMBER | the five-number code, as words |
 

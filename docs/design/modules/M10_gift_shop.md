@@ -3,7 +3,31 @@
 **Target vocab (30):** yo-yo, doll, kite, ball, card, gift, flower, one, two, three, four, five, six, seven, eight, nine, ten, eleven, twelve, dollar, how much, how many, want, for, thank, box, bag, grandmother, sister, teacher
 **Off-list words needed:** buy, pay, price, coin, more, put
 **Difficulty:** A1–B1 · **Time:** 60–120 s · **Route:** vocab-first (Toys + Holidays + Numbers)
-**Status:** Draft (rev 2: rebuilt as a two-way number puzzle, with no serial lookup)
+**Status:** Built, rev 3 (rev 2: rebuilt as a two-way number puzzle, with no serial lookup)
+
+> **Rev 3 (built, supersedes the recipe rules below):**
+> - Each person has a **wish list**: grandmother = flowers, heart cards, boxes; my sister =
+>   dolls, kites, yo-yos, bags; the teacher = THANK YOU cards, flowers, balls.
+> - **Any** basket is a good gift if it has only wanted things (any number of each) and costs
+>   exactly the wallet. A right total that includes an unwanted thing (e.g. a box for the
+>   sister) is a strike.
+> - **Taiwan-style prices** (NT dollars, no cents): 10, 20, 30, 40, 50, 60, 80, 100, 120, 150,
+>   200, written as words ("one hundred fifty dollars"). The wallet is 100–500 in tens.
+> - The money is the buyer's: **"You have … dollars"**, not the bomb's.
+> - Each board has 1–4 good gifts, each made of 2–6 things (never a single item).
+> - The Defuser sees who the gift is for as a **word**, not a portrait.
+
+> **Gift Shop: Price List (B1, 🧩4, `giftShopList`):** the harder twin, in the same file.
+> - **Defuser:** who the gift is for (grandmother, my sister, the teacher, my brother), "You have …
+>   dollars", and the 8 things the shop has, with **no prices**.
+> - **Expert:** the wish lists (6 things each) and a **price list of all 18 things** the shops can sell,
+>   found by the shop number. The printed manual has one column per shop number.
+> - So the Defuser has to say what is in stock and how much money there is, and the Expert has to say
+>   the prices. Neither can solve it alone.
+> - Each shop has 2–4 wanted things in stock and at least 2 wanted things not in stock. Ignoring the
+>   stock gives extra "answers", so the team has to check what the shop really has. There are 1–4 good
+>   gifts, each 2–6 things with at least two **different** things (never "3 pens").
+> - A wrong PAY is a strike, and the bomb moves to a **new shop number**.
 
 ## The hook
 
@@ -21,8 +45,9 @@ Defuser who describes and an Expert who instructs. Here both sides ask and both 
 
 ## Defuser view
 
-- **Wish bubble:** a picture of who the gift is for: grandmother, sister, teacher (plus
-  father, brother and a friend at B1, reusing M01 art).
+- **Wish bubble:** who the gift is for, written as a word: `grandmother`, `my sister`,
+  `the teacher` (plus father and friend at B1). This was a pixel portrait at first, but the
+  people were too hard to tell apart, and nothing else tells the Expert who it is.
 - **Shelf with price tags:** yo-yo, doll, kite, ball, flower. Each tag shows the price **as
   an English word**: `seven dollars`, not `$7` (see English lock). Prices change every round. At B1 two items share a type at different prices (a big
   kite and a small kite).
